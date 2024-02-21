@@ -31,11 +31,23 @@ Tasks:
 
 - Reconstruct "Bivariate sorts on size, e/p, cf/p, d/p". Portfolios formed on size and earnings/ price, size and cashflow/price, and size and dividend yield. Use the unaggregated CRSP and Compustat data and reconstruct the portfolios that match.
   ![1708480099064](image/README/1708480099064.png)
+
+  ![1708480371432](image/README/1708480371432.png)
+
+  ![1708480384733](image/README/1708480384733.png)
+
+  ![1708480398607](image/README/1708480398607.png)
 - Reconstruct the "bivariate sorts on operating profitability and investment" consists of 3 files, each with 25 portfolios in it. Reconstruct from unaggregated CRSP and Compustat data.
   ![1708480296630](image/README/1708480296630.png)
+
+  ![1708480343029](image/README/1708480343029.png)
 - Reconstruct each of the "5 industry portfolios" and "49 industry portfolios" from "scratch" Use unaggregated CRSP data and reconstruct portfolios that match
 
 ![1708480203554](image/README/1708480203554.png)![1708480213937](image/README/1708480213937.png)
+
+![1708480423680](image/README/1708480423680.png)
+
+![1708480436845](image/README/1708480436845.png)
 
 # About this project
 
