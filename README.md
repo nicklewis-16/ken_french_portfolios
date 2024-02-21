@@ -9,7 +9,7 @@ Project Requirement Delegation:
 - Jupyter notebook touring cleaned data and analysis performed in code. Like a HW guide
 - Replication: series tables figures for project with proper unit testing threshold
   - reproduce as well with updated numbers.
-- Extension: perform your own smmary statistics/ charts that provide ample understanding of underlying data. Tables/ figures typeset on LaTex with captions that describe/ motivate them. Description/ takeaways
+- Extension: perform your own summary statistics/ charts that provide ample understanding of underlying data. Tables/ figures typeset on LaTex with captions that describe/ motivate them. Description/ takeaways
 - Separate files for cleaning data to tidy format - load_x files
 - Automatic generation? PyDoIt. Unit tests well constructed/ motivated/ have purpose?
 - GitHub Repo clear of any copyright material? No raw data in repo. Free of any API secrets? Use .env
@@ -48,6 +48,41 @@ Tasks:
 ![1708480423680](image/README/1708480423680.png)
 
 ![1708480436845](image/README/1708480436845.png)
+
+# Meeting Notes/ Questions
+
+1. "Bivariate sorts on size, e/p, cf/p, d/p"- Zak/ Riccardo
+2. "bivariate sorts on operating profitability and investment"- Nick/ Bryce
+3. "5 industry portfolios" and "49 industry portfolios"
+
+Idea:
+
+- Split up in pairs- 2 of us on 1.  and 2 of us on 2. Allows for easy troubleshooting/ more familiarity with topic as a group
+- One group finish 3. while one group ensures proper documentation and works on end to end automation (dodo, outputting charts/ tables, and LaTeX document)
+- Work backwards: write unittests first/ skeleton functions to get a course of action, then building upon and doing actual computation. Assessing acceptable tolerance for replication
+
+Initial Questions:
+
+- Weighting of the stocks in each portfolio? Equal or value weighting? Wrt equity value?
+- What does effective unit test look like? Copy/ paste from the CSV online then checking if our #'s align? Does this interfere with end to end automation aspect of the project?
+
+Goals:
+
+- Correctly replicate 1., 2. and 3. (time permitting)
+- Learn how to write unittests
+- Integrating LaTeX writeup from python code
+
+Due Date Range: Week up to March 8
+
+Try to finish first 1., 2.  by Monday
+
+Try to finish compiling project by Friday
+
+# Work Log
+
+Add time/ what you added to repo so we all follow along as we go:
+
+- 
 
 # About this project
 
