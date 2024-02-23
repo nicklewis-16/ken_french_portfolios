@@ -1,18 +1,29 @@
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 import pandas as pd
-from pandas.tseries.offsets import MonthEnd
-import wrds
 from pathlib import Path
+import wrds
+import numpy as np
 import config
 
-OUTPUT_DIR = Path(config.OUTPUT_DIR)
 DATA_DIR = Path(config.DATA_DIR)
 WRDS_USERNAME = config.WRDS_USERNAME
 
-def pull_CRSP_stock_data(start_date, end_date, wrds_username=WRDS_USERNAME):
+START_DATE = '1951-07-01'  
+END_DATE = '2023-12-31'    
+
+def establish_db_connection(wrds_username=WRDS_USERNAME):
     """
-    Pulls necessary CRSP monthly stock data for NYSE, AMEX, and NASDAQ stocks,
-    including monthly returns, prices, shares outstanding, and dividends.
+    Establishes a connection to the WRDS database.
     """
+    return wrds.Connection(wrds_username=wrds_username)
+
+def pull_CRSP_stock_data(start_date=START_DATE, end_date=END_DATE, wrds_username=WRDS_USERNAME):
+    """
+    Pulls necessary CRSP monthly stock data for NYSE, AMEX, and NASDAQ stocks.
+    """
+    start_date = (datetime.strptime(start_date, "%Y-%m-%d") - relativedelta(months=1)).strftime("%Y-%m-%d")
+
     sql_query = f"""
         SELECT 
             msf.permno, msf.permco, msf.date, 
@@ -25,41 +36,22 @@ def pull_CRSP_stock_data(start_date, end_date, wrds_username=WRDS_USERNAME):
             msf.date BETWEEN '{start_date}' AND '{end_date}' AND
             names.exchcd IN (1, 2, 3)
     """
-    db = wrds.Connection(wrds_username=wrds_username)
-    crsp_data = db.raw_sql(sql_query, date_cols=['date'])
-    db.close()
 
-    # Adjust date to end of month
-    crsp_data['jdate'] = crsp_data['date'] + MonthEnd(0)
+    with establish_db_connection(wrds_username) as db:
+        crsp_data = db.raw_sql(sql_query, date_cols=['date'])
+
+    crsp_data['date'] = pd.to_datetime(crsp_data['date'])
+    crsp_data['jdate'] = crsp_data['date'] + pd.offsets.MonthEnd(0)
 
     return crsp_data
 
-def pull_CRSP_Comp_Link_Table(wrds_username=WRDS_USERNAME):
+def pull_Compustat_data(start_date=START_DATE, end_date=END_DATE, wrds_username=WRDS_USERNAME):
     """
-    Pulls the linkage table between CRSP and Compustat to facilitate merging datasets.
-    """
-    sql_query = """
-        SELECT 
-            gvkey, lpermno AS permno, linktype, linkprim, linkdt, linkenddt
-        FROM 
-            crsp.ccmxpf_linktable
-        WHERE 
-            substr(linktype,1,1)='L' AND 
-            (linkprim ='C' OR linkprim='P')
-    """
-    db = wrds.Connection(wrds_username=wrds_username)
-    link_table = db.raw_sql(sql_query, date_cols=["linkdt", "linkenddt"])
-    db.close()
-
-    return link_table
-
-def pull_Compustat_data(start_date, end_date, wrds_username=WRDS_USERNAME):
-    """
-    Pulls Compustat data including earnings and cash flow to identify firms with non-negative earnings.
+    Pulls Compustat data including earnings and cash flow.
     """
     sql_query = f"""
         SELECT 
-            gvkey, datadate, ni, oancf -- oancf for operating activities net cash flow
+            gvkey, datadate, ni, oancf
         FROM 
             comp.funda
         WHERE 
@@ -69,27 +61,32 @@ def pull_Compustat_data(start_date, end_date, wrds_username=WRDS_USERNAME):
             popsrc='D' AND 
             consol='C'
     """
-    db = wrds.Connection(wrds_username=wrds_username)
-    comp_data = db.raw_sql(sql_query, date_cols=['datadate'])
-    db.close()
 
-    # Filter for non-negative earnings
+    with establish_db_connection(wrds_username) as db:
+        comp_data = db.raw_sql(sql_query, date_cols=['datadate'])
+
     comp_data = comp_data[comp_data['ni'] > 0]
 
     return comp_data
 
-def main():
-    start_date = '1951-07-01'
-    end_date = '2023-12-31'
+def load_CRSP_data(data_dir=DATA_DIR):
+    filepath = Path(data_dir) / "pulled" / "CRSP_data.parquet"
+    return pd.read_parquet(filepath)
 
-    crsp_data = pull_CRSP_stock_data(start_date, end_date, WRDS_USERNAME)
-    link_table = pull_CRSP_Comp_Link_Table(WRDS_USERNAME)
-    comp_data = pull_Compustat_data(start_date, end_date, WRDS_USERNAME)
+def load_Compustat_data(data_dir=DATA_DIR):
+    filepath = Path(data_dir) / "pulled" / "Compustat_data.parquet"
+    return pd.read_parquet(filepath)
 
-    merged_data = pd.merge(crsp_data, link_table, left_on='permno', right_on='permno', how='inner')
-    merged_data = pd.merge(merged_data, comp_data, left_on='gvkey', right_on='gvkey', how='inner')
-
-    merged_data.to_parquet(DATA_DIR / "pulled" / "merged_CRSP_Compustat_data.parquet")
+def demo():
+    df_msf = load_CRSP_data(data_dir=DATA_DIR)
+    df_msix = load_Compustat_data(data_dir=DATA_DIR)
 
 if __name__ == "__main__":
-    main()
+    
+    df_msf = pull_CRSP_stock_data(START_DATE, END_DATE, WRDS_USERNAME)
+    df_msix = pull_Compustat_data(START_DATE, END_DATE, WRDS_USERNAME)
+
+    # Save pulled data to parquet files for future loading
+    df_msf.to_parquet(DATA_DIR / "pulled" / "CRSP_data.parquet")
+    df_msix.to_parquet(DATA_DIR / "pulled" / "Compustat_data.parquet")
+
