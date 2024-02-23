@@ -30,7 +30,7 @@ portfolio_descriptions = {'6_Portfolios_ME_EP_2x3': bivariate_ep,
                           '49_Industry_Portfolios_daily': industry
                           }
 
-filedir = Path(config.OUTPUT_DIR) / 'famafrench'
+filedir = Path(config.DATA_DIR) / 'famafrench'
 filedir.mkdir(parents=True, exist_ok=True)
 
 def save_portfolio_data_to_excel(portfolio_descriptions):
