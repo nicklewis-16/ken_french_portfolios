@@ -20,14 +20,15 @@ def establish_db_connection(wrds_username=WRDS_USERNAME):
 
 def pull_CRSP_stock_data(start_date=START_DATE, end_date=END_DATE, wrds_username=WRDS_USERNAME):
     """
-    Pulls necessary CRSP monthly stock data for NYSE, AMEX, and NASDAQ stocks.
+    Pulls necessary CRSP monthly stock data for NYSE, AMEX, and NASDAQ stocks, including the exchange type.
     """
     start_date = (datetime.strptime(start_date, "%Y-%m-%d") - relativedelta(months=1)).strftime("%Y-%m-%d")
 
     sql_query = f"""
         SELECT 
             msf.permno, msf.permco, msf.date, 
-            msf.ret AS mthret, msf.ret AS mthretx, msf.shrout, msf.prc AS mthprc
+            msf.ret AS mthret, msf.ret AS mthretx, msf.shrout, msf.prc AS mthprc,
+            names.exchcd AS exchange_type
         FROM 
             crsp.msf AS msf
             JOIN crsp.msenames AS names ON msf.permno = names.permno 
@@ -43,7 +44,11 @@ def pull_CRSP_stock_data(start_date=START_DATE, end_date=END_DATE, wrds_username
     crsp_data['date'] = pd.to_datetime(crsp_data['date'])
     crsp_data['jdate'] = crsp_data['date'] + pd.offsets.MonthEnd(0)
 
+    exchange_map = {1: 'NYSE', 2: 'AMEX', 3: 'NASDAQ'}
+    crsp_data['exchange_name'] = crsp_data['exchange_type'].map(exchange_map)
+
     return crsp_data
+
 
 def pull_Compustat_data(start_date=START_DATE, end_date=END_DATE, wrds_username=WRDS_USERNAME):
     """
