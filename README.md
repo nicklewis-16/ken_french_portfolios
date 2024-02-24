@@ -84,6 +84,7 @@ Add time/ what you added to repo so we all follow along as we go:
 
 - Pull raw data file added: pulls and loads data from CRSP and Compustat as per requirments (E/P, Size, CF metrics but missing dividend as of now) - Feb 22 18:55 (Zak & Riccardo)
 - Added link table function to pull_raw_data.py to merge CRSP and Compustat Data - Feb 23 13:10 (Zak)
+- Created new file calc_metrics: managed to get outputs but still different from expected. Load the right raw data but 1. missing data points for most dates between 1951 and 1970 2. similar result trend but apparent discrepancy in obtained results - Feb 23 8pm (Zak & Riccardo) 
 
 # About this project
 
