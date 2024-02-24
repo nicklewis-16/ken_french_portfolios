@@ -6,6 +6,8 @@ import wrds
 import numpy as np
 import config
 
+# revenue = revt; cogs = cogs; SGA = xsga; interest = xint; book equity = ceq; total assets = at
+
 DATA_DIR = Path(config.DATA_DIR)
 WRDS_USERNAME = config.WRDS_USERNAME
 
