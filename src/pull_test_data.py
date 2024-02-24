@@ -1,4 +1,3 @@
-
 """
 This script fetches data for various portfolios from the Ken French Data Library,
 saves the data to Excel files, and downloads and extracts ZIP files for specific portfolios.
