@@ -270,7 +270,7 @@ def write_dfs_to_excel(file_path, excel_file_name):
     excel_file_path = f'../data/famafrench/{excel_file_name}.xlsx'
     
     with pd.ExcelWriter(excel_file_path, engine='xlsxwriter') as writer:
-        dfs[0].to_excel(writer, sheet_name='descriptions')
+        dfs[0].to_excel(writer, sheet_name='Description')
         for i, df_segment in enumerate(dfs[1:], start=0):
             sheet_name = str(i)
             df_segment.to_excel(writer, sheet_name=sheet_name)            
