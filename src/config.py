@@ -30,6 +30,8 @@ if __name__ == "__main__":
     
     ## If they don't exist, create the data and output directories
     (DATA_DIR / 'pulled').mkdir(parents=True, exist_ok=True)
+    (DATA_DIR / 'famafrench').mkdir(parents=True, exist_ok=True)
+    (DATA_DIR / 'manual').mkdir(parents=True, exist_ok=True)
 
     # Sometimes, I'll create other folders to organize the data
     # (DATA_DIR / 'intermediate').mkdir(parents=True, exist_ok=True)

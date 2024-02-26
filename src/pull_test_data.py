@@ -28,12 +28,18 @@ bivariate_div = ('1927-07-01', '2023-12-31')
 op_inv = ('1963-07-01', '2023-12-31')
 industry = ('1926-07-01', '2023-12-31')
 
-portfolio_descriptions = {'6_Portfolios_ME_EP_2x3': bivariate_ep,
-                          '6_Portfolios_ME_EP_2x3_Wout_Div': bivariate_ep,
-                          '6_Portfolios_ME_CFP_2x3': bivariate_cfp,
-                          '6_Portfolios_ME_CFP_2x3_Wout_Div': bivariate_cfp,
-                          '6_Portfolios_ME_DP_2x3': bivariate_div,
-                          '6_Portfolios_ME_DP_2x3_Wout_Div': bivariate_div,
+portfolio_descriptions = {'Portfolios_Formed_on_E-P': bivariate_ep, #UNIVARIATE SORTS 
+                          'Portfolios_Formed_on_E-P_Wout_Div': bivariate_ep,#UNIVARIATE SORTS 
+                          'Portfolios_Formed_on_CF-P': bivariate_cfp,#UNIVARIATE SORTS 
+                          'Portfolios_Formed_on_CF-P_Wout_Div': bivariate_cfp,#UNIVARIATE SORTS 
+                          'Portfolios_Formed_on_D-P': bivariate_div,#UNIVARIATE SORTS 
+                          'Portfolios_Formed_on_D-P_Wout_Div': bivariate_div, #UNIVARIATE SORTS 
+                          '6_Portfolios_ME_EP_2x3': bivariate_ep, #BIVARIATE SORTS 
+                          '6_Portfolios_ME_EP_2x3_Wout_Div': bivariate_ep,#BIVARIATE SORTS 
+                          '6_Portfolios_ME_CFP_2x3': bivariate_cfp,#BIVARIATE SORTS 
+                          '6_Portfolios_ME_CFP_2x3_Wout_Div': bivariate_cfp,#BIVARIATE SORTS 
+                          '6_Portfolios_ME_DP_2x3': bivariate_div,#BIVARIATE SORTS 
+                          '6_Portfolios_ME_DP_2x3_Wout_Div': bivariate_div,#BIVARIATE SORTS 
                           '5_Industry_Portfolios': industry,
                           '5_Industry_Portfolios_Wout_Div': industry,
                           '5_Industry_Portfolios_daily': industry,
