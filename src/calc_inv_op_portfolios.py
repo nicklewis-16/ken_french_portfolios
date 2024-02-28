@@ -15,17 +15,26 @@ def load_financial_data(filepath):
     """
     pass
 
-def calculate_op(profit, total_assets):
+def calculate_op(profit, last_book_equity):
     """
     Calculate operating profitability (OP).
     """
-    pass
+    op = profit / last_book_equity
+    return op
+
+# def calculate_op(df):
+#     """
+#     Calculate operating profitability (OP).
+#     """
+#     df['op'] = (df['revt'] - df['cogs'] - df['xsga'] - df['xint']) / df['ceq']
+#     return df
 
 def calculate_inv(asset_previous, asset_current):
     """
     Calculate investment (INV) growth rate.
     """
-    pass
+    inventory = (asset_current - asset_previous) / asset_previous
+    return inventory
 
 def handle_missing_data(data):
     """
@@ -33,23 +42,99 @@ def handle_missing_data(data):
     """
     pass
 
+# def calc_book_equity(comp):
+#     """
+#     Calculate book equity in Compustat.
+#     """
+#     comp['ps'] = comp['pstkrv'].fillna(comp['pstkl'])
+#     comp['ps'] = comp['ps'].fillna(comp['pstk'])
+#     comp['ps'] = comp['ps'].fillna(0)
+#     comp['txditc'] = comp['txditc'].fillna(0)
+#     comp['be'] = comp['seq'] + comp['txditc'] - comp['ps']
+#     comp['be'] = comp['be'].where(comp['be'] > 0)
+
+#     return comp
+
 def sort_into_quintiles(data, metric):
     """
     Sort firms into quintiles based on a given metric.
     """
-    pass
+    data['year'] = data['date'].dt.year
+    data['month'] = data['date'].dt.month
+    data['fiscal_year'] = data['date'].dt.year if df['month'] > 6 else df['date'].dt.year - 1
+
+    # Step 1: Aggregate the data to get yearly numbers 
+    yearly_data = data.groupby(['permno', pd.Grouper(key='month', freq='fiscal_year')]).agg({
+        'revt': 'sum',
+        'cogs': 'sum',
+        'xsga': 'sum',
+        'xint': 'sum',
+        'ceq': 'last',
+        'at': 'last'   #Assuming at and ceq are looking at the past year
+    }).reset_index()
+
+    yearly_data.rename(columns={'month': 'fiscal_year', 'monthly_revenue': 'annual_revenue'}, inplace=True)
+
+    # Step 2: Assign quintiles for annual revenue and assets for every separate year
+    yearly_data['profit'] = yearly_data['revt'] - yearly_data['cogs'] - yearly_data['xsga'] - yearly_data['xint']
+    yearly_data['op'] = calculate_op(yearly_data['profit'], yearly_data['ceq'])
+    yearly_data['op_quintile'] = yearly_data.groupby('year')['op'].transform(
+        lambda x: pd.qcut(x, 5, labels=False, duplicates='drop')
+    )
+
+    yearly_data['investment'] = calculate_inv(yearly_data['at'].shift(1), yearly_data['at'])
+    yearly_data['inv_quintile'] = yearly_data.groupby('year')['investment'].transform(
+        lambda x: pd.qcut(x, 5, labels=False, duplicates='drop')
+    )
+
+    # Step 3: Merge the quintile information back to the monthly observations DataFrame
+    data = pd.merge(data, yearly_data[['permno', 'fiscal_year', 'op_quintile', 'inv_quintile']], on=['permno', 'fiscal_year'], how='left')
+
+    return data
 
 def form_portfolios(data):
     """
     Form 25 portfolios based on OP and INV quintiles.
     """
-    pass
+    data['op_category'] = data.apply(lambda row: 'OP1' if row['op_quintile'] == 1  else 
+                                       'OP2' if row['op_quintile'] == 2 else
+                                       'OP3' if row['op_quintile'] == 3 else
+                                       'OP4' if row['op_quintile'] == 4 else
+                                       'OP5' , axis=1)
+    data['inv_category'] = data.apply(lambda row: 'INV1' if row['inv_quintile'] == 1  else 
+                                       'INV2' if row['inv_quintile'] == 2 else
+                                       'INV3' if row['inv_quintile'] == 3 else
+                                       'INV4' if row['inv_quintile'] == 4 else
+                                       'INV5' , axis=1)
+    
+    return data
 
-def calculate_portfolio_returns(portfolios):
+def calculate_portfolio_returns(data):
     """
     Calculate returns for each portfolio.
     """
-    pass
+    data['period'] = data['date'].dt.to_period('M')
+    data['equal_weighted_return'] = data['mthret'] * df['weight']
+    portfolio_returns = data.groupby(['period', 'op_category', 'inv_category'])['equal_weighted_return'].sum()
+    portfolio_returns = portfolio_returns.unstack(level=['op_category', 'inv_category'])
+    portfolio_returns.index = portfolio_returns.index.strftime('%Y%m')
+    portfolio_returns.columns = ['OP1 INV1', 'OP1 INV2', 'OP1 INV3', 'OP1 INV4', 'OP1 INV5', 
+                                 'OP2 INV1', 'OP2 INV2', 'OP2 INV3', 'OP2 INV4', 'OP2 INV5',
+                                 'OP3 INV1', 'OP3 INV2', 'OP3 INV3', 'OP3 INV4', 'OP3 INV5',
+                                 'OP4 INV1', 'OP4 INV2', 'OP4 INV3', 'OP4 INV4', 'OP4 INV5',
+                                 'OP5 INV1', 'OP5 INV2', 'OP5 INV3', 'OP5 INV4', 'OP5 INV5']
+    portfolio_returns = portfolio_returns[['OP1 INV1', 'OP1 INV2', 'OP1 INV3', 'OP1 INV4', 'OP1 INV5', 
+                                 'OP2 INV1', 'OP2 INV2', 'OP2 INV3', 'OP2 INV4', 'OP2 INV5',
+                                 'OP3 INV1', 'OP3 INV2', 'OP3 INV3', 'OP3 INV4', 'OP3 INV5',
+                                 'OP4 INV1', 'OP4 INV2', 'OP4 INV3', 'OP4 INV4', 'OP4 INV5',
+                                 'OP5 INV1', 'OP5 INV2', 'OP5 INV3', 'OP5 INV4', 'OP5 INV5',]]
+    portfolio_returns.reset_index(inplace=True)
+    portfolio_returns.rename(columns={'index': 'period', 'OP1 INV1': 'LoOP LoINV', 'OP1 INV5': 'LoOP HiINV',
+                                      'OP5 INV1': 'HiOP LoINV', 'OP5 INV5': 'HiOP HiINV'}, inplace=True)
+    cols = ['period'] + [col for col in portfolio_returns.columns if col != 'period']
+    portfolio_returns = portfolio_returns[cols]
+
+    return portfolio_returns
 
 
 
