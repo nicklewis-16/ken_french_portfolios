@@ -1,22 +1,25 @@
-CRSP Columns
-* permno: Permanent Number - A unique stock identifier assigned by CRSP to each security that remains constant throughout the stock's history.
-* permco: Permanent Company - A unique company identifier assigned by CRSP. Multiple permnos (securities) can be associated with one permco if the company has multiple classes of stock.
-* date: The date of the observation, typically the end of the month for monthly data.
-* mthret: Monthly Return - The total return of the security for the month, including dividends.
-* mthretx: Monthly Return Excluding Dividends - The return of the security for the month, excluding dividends.
-* shrout: Shares Outstanding - The total number of outstanding shares at the end of the month.
-* mthprc: Monthly Price - The closing price of the security at the end of the month.
-* jdate: Adjustment Date - This is typically the date adjusted to ensure it falls at the end of the month, often used for aligning data across different sources.
+Sure, here is the explanation of each column in the format you provided:
 
+**CRSP Columns**
+* `permno`: Permanent Number - A unique stock identifier assigned by CRSP to each security that remains constant throughout the stock's history.
+* `permco`: Permanent Company - A unique company identifier assigned by CRSP. Multiple permnos (securities) can be associated with one permco if the company has multiple classes of stock.
+* `date`: The date of the observation, typically the end of the month for monthly data.
+* `mthret`: Monthly Return - The total return of the security for the month, including dividends.
+* `mthretx`: Monthly Return Excluding Dividends - The return of the security for the month, excluding dividends.
+* `shrout`: Shares Outstanding - The total number of outstanding shares at the end of the month.
+* `mthprc`: Monthly Price - The closing price of the security at the end of the month.
+* `exchange_type`: A code representing the type of exchange on which the security is traded.
+* `jdate`: Adjustment Date - This is typically the date adjusted to ensure it falls at the end of the month, often used for aligning data across different sources.
 
-CRSP/Compustat Merged Database Columns
-* gvkey: Global Company Key - A unique identifier for a company in the Compustat database.
-* linktype: Link Type - Indicates the type of linkage between CRSP and Compustat records. 'LU' (link used) is common, indicating a usable link between the databases.
-* linkprim: Primary Link Indicator - Specifies whether the link is a primary ('P') or secondary link. Primary links ('P') are direct matches between CRSP and Compustat entities, while secondary links ('C' for conditional) are less direct connections.
-* linkdt: Link Date Start - The starting date for which the linkage between CRSP and Compustat data is considered valid.
-* linkenddt: Link Date End - The ending date for which the linkage is considered valid. A blank or a high-value date (e.g., '2099-12-31') indicates an ongoing link.
+**CRSP/Compustat Merged Database Columns**
+* `exchange_name`: The name of the exchange on which the security is traded.
+* `gvkey`: Global Company Key - A unique identifier for a company in the Compustat database.
+* `linkdt`: Link Date Start - The starting date for which the linkage between CRSP and Compustat data is considered valid.
+* `linkenddt`: Link Date End - The ending date for which the linkage is considered valid. A blank or a high-value date (e.g., '2099-12-31') indicates an ongoing link.
 
-
-Compustat Columns
-* datadate: Data Date - The date corresponding to the financial data measurement, often the fiscal year-end or quarter-end date.
-* ni: Net Income - The net income (profit or loss) reported by the company for the period, typically for the fiscal year or quarter.
+**Compustat Columns**
+* `datadate`: Data Date - The date corresponding to the financial data measurement, often the fiscal year-end or quarter-end date.
+* `ni`: Net Income - The net income (profit or loss) reported by the company for the period, typically for the fiscal year or quarter.
+* `oancf`: Operating Activities Net Cash Flow - The net cash generated from operating activities during the period, typically for the fiscal year or quarter.
+* `epsfx`: Earnings Per Share Fully Diluted - The company's earnings per share, adjusted for dilution, typically for the fiscal year or quarter.
+* `datadate_eom`: Data Date End of Month - The date corresponding to the end of the month in which the financial data measurement period ends.
