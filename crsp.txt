@@ -1,5 +1,3 @@
-Sure, here is the explanation of each column in the format you provided:
-
 **CRSP Columns**
 * `permno`: Permanent Number - A unique stock identifier assigned by CRSP to each security that remains constant throughout the stock's history.
 * `permco`: Permanent Company - A unique company identifier assigned by CRSP. Multiple permnos (securities) can be associated with one permco if the company has multiple classes of stock.
