@@ -25,6 +25,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = config('DATA_DIR', default=(BASE_DIR / 'data'), cast=Path)
 OUTPUT_DIR = config('OUTPUT_DIR', default=(BASE_DIR / 'output'), cast=Path)
 WRDS_USERNAME = config("WRDS_USERNAME", default="")
+START_DATE = '1951-07-01'
+END_DATE = '2024-02-28'
 
 if __name__ == "__main__":
     
@@ -32,9 +34,4 @@ if __name__ == "__main__":
     (DATA_DIR / 'pulled').mkdir(parents=True, exist_ok=True)
     (DATA_DIR / 'famafrench').mkdir(parents=True, exist_ok=True)
     (DATA_DIR / 'manual').mkdir(parents=True, exist_ok=True)
-
-    # Sometimes, I'll create other folders to organize the data
-    # (DATA_DIR / 'intermediate').mkdir(parents=True, exist_ok=True)
-    # (DATA_DIR / 'derived').mkdir(parents=True, exist_ok=True)
-
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
