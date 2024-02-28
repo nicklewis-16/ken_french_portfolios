@@ -51,93 +51,125 @@ def copy_notebook_to_folder(notebook_stem, origin_folder, destination_folder):
     return command
 
 
-def task_pull_fred():
-    """ """
-    file_dep = ["./src/load_fred.py"]
-    file_output = ["fred.parquet"]
-    targets = [DATA_DIR / "pulled" / file for file in file_output]
 
-    return {
-        "actions": [
-            "ipython ./src/load_fred.py",
-        ],
-        "targets": targets,
-        "file_dep": file_dep,
-        "clean": True,
-    }
-
-
-# def task_pull_data_via_presto():
-#     """
-#     Run several data pulls
-
-#     This will run commands like this:
-#     presto-cli --output-format=CSV_HEADER --file=/data/unixhome/src/sql_gross_performance.sql > /data/unixhome/src/sometest.csv
-
-#     """
-#     sql_pulls_dict = {
-#         'sometest.sql':'sometest.csv',
-#     }
-#     file_dep = list(sql_pulls_dict.keys())
-#     file_output = list(sql_pulls_dict.values())
-
-#     targets = [PRIVATE_DATA_DIR / 'sql_pulled' / file for file in file_output]
-
-#     def action_string(sql_file, csv_output):
-#         s = f"""
-#             ssh sql.someurl.com <<-'ENDSSH'
-#             echo Starting Presto Pull Command for {sql_file}
-#             cd {getcwd()}
-#             presto-cli --output-format=CSV_HEADER --file={sql_file} > {csv_output}
-#             """
-#         return s
-#     actions = [
-#                 action_string(sql_file,
-#                               (PRIVATE_DATA_DIR / 'sql_pulled' / sql_pulls_dict[sql_file])
-#                               ) for sql_file in sql_pulls_dict
-#             ]
-#     return {
-#         "actions":actions,
-#         "targets": targets,
-#         'task_dep':[],
-#         "file_dep": file_dep,
-#     }
-
-
-def task_summary_stats():
-    """ """
-    file_dep = ["./src/example_table.py"]
-    file_output = [
-        "example_table.tex",
-        "pandas_to_latex_simple_table1.tex",
+def task_pull_CRSP_Compustat():
+    """Pull CRSP/Compustat data from WRDS and save to disk
+    """
+    file_dep = [
+        "./src/config.py", 
+        "./src/load_CRSP_stock.py",
+        "./src/load_CRSP_Compustat.py",
         ]
-    targets = [OUTPUT_DIR / file for file in file_output]
+    targets = [
+        Path(DATA_DIR) / "pulled" / file for file in 
+        [
+            ## src/load_CRSP_stock.py
+            "CRSP_MSF_INDEX_INPUTS.parquet", 
+            "CRSP_MSIX.parquet", 
+            ## src/load_CRSP_Compustat.py
+            "Compustat.parquet",
+            "CRSP_stock_ciz.parquet",
+            "CRSP_Comp_Link_Table.parquet",
+        ]
+    ]
 
     return {
         "actions": [
-            "ipython ./src/example_table.py",
-            "ipython ./src/pandas_to_latex_demo.py",
+            "ipython src/config.py",
+            "ipython src/load_CRSP_stock.py",
+            "ipython src/load_CRSP_Compustat.py",
         ],
         "targets": targets,
         "file_dep": file_dep,
         "clean": True,
+        "verbosity": 2, # Print everything immediately. This is important in
+        # case WRDS asks for credentials.
     }
-
-
-def task_example_plot():
-    """Example plots"""
-    file_dep = [Path("./src") / file for file in ["example_plot.py", "load_fred.py"]]
-    file_output = ["example_plot.png"]
-    targets = [OUTPUT_DIR / file for file in file_output]
+    
+    
+def task_pull_ken_french_data():
+    """Pull CRSP/Compustat data from WRDS and save to disk
+    """
+    file_dep = [
+        "./src/config.py", 
+        "./src/pull_test_data.py",
+        ]
+    targets = [
+        Path(DATA_DIR) / "famafrench" / file for file in 
+        [
+            ## src/pull_test_data.py
+            "5_Industry_Portfolios_daily.xlsx",
+            "5_Industry_Portfolios_Wout_Div.xlsx",
+            "5_Industry_Portfolios.xlsx",
+            "6_Portfolios_ME_CFP_2x3_Wout_Div.xlsx", 
+            "6_Portfolios_ME_CFP_2x3.xlsx",
+            "6_Portfolios_ME_DP_2x3_Wout_Div.xlsx",
+            "6_Portfolios_ME_DP_2x3.xlsx",
+            "6_Portfolios_ME_EP_2x3_Wout_Div.xlsx",
+            "6_Portfolios_ME_EP_2x3.xlsx",
+            "25_Portfolios_OP_INV_5x5_daily.xlsx",
+            "25_Portfolios_OP_INV_5x5_Wout_Div.xlsx",
+            "25_Portfolios_OP_INV_5x5.xlsx",
+            "49_Industry_Portfolios_daily.xlsx",
+            "49_Industry_Portfolios_Wout_Div.xlsx",
+            "49_Industry_Portfolios.xlsx",
+            "Portfolios_Formed_on_CF-P_Wout_Div.xlsx",
+            "Portfolios_Formed_on_CF-P.xlsx",
+            "Portfolios_Formed_on_D-P_Wout_Div.xlsx",
+            "Portfolios_Formed_on_D-P.xlsx",
+            "Portfolios_Formed_on_E-P_Wout_Div.xlsx",
+            "Portfolios_Formed_on_E-P.xlsx"
+        ]
+    ]
 
     return {
         "actions": [
-            "ipython ./src/example_plot.py",
+            "ipython src/config.py",
+            "ipython src/load_CRSP_stock.py",
+            "ipython src/load_CRSP_Compustat.py",
         ],
         "targets": targets,
         "file_dep": file_dep,
         "clean": True,
+        "verbosity": 2, # Print everything immediately. This is important in
+        # case WRDS asks for credentials.
     }
+
+
+# def task_summary_stats():
+#     """ """
+#     file_dep = ["./src/example_table.py"]
+#     file_output = [
+#         "example_table.tex",
+#         "pandas_to_latex_simple_table1.tex",
+#         ]
+#     targets = [OUTPUT_DIR / file for file in file_output]
+
+#     return {
+#         "actions": [
+#             "ipython ./src/example_table.py",
+#             "ipython ./src/pandas_to_latex_demo.py",
+#         ],
+#         "targets": targets,
+#         "file_dep": file_dep,
+#         "clean": True,
+#     }
+
+
+# def task_example_plot():
+#     """Example plots"""
+#     file_dep = [Path("./src") / file for file in ["example_plot.py", "load_fred.py"]]
+#     file_output = ["example_plot.png"]
+#     targets = [OUTPUT_DIR / file for file in file_output]
+
+#     return {
+#         "actions": [
+#             "ipython ./src/example_plot.py",
+#         ],
+#         "targets": targets,
+#         "file_dep": file_dep,
+#         "clean": True,
+#     }
 
 
 def task_convert_notebooks_to_scripts():
