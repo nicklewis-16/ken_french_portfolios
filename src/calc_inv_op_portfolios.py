@@ -2,39 +2,68 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 import config
-from pull_raw_data import *
 
 
 OUTPUT_DIR = Path(config.OUTPUT_DIR)
 DATA_DIR = Path(config.DATA_DIR)
 
+from load_CRSP_Compustat import *
+from load_CRSP_stock import *
 
-def load_financial_data(filepath):
-    """
-    Load financial data from a given filepath.
-    """
-    pass
 
-def calculate_op(profit, last_book_equity):
-    """
-    Calculate operating profitability (OP).
-    """
-    op = profit / last_book_equity
-    return op
+# Blue print
+# Load and merge CRSP and Compustat data- might need to check out load_CRSP_Compustat.py
+# Calculate operating profitability and investment metrics- condensed into 1 function
+# Assign firms to quintiles based on these metrics
 
-# def calculate_op(df):
-#     """
-#     Calculate operating profitability (OP).
-#     """
-#     df['op'] = (df['revt'] - df['cogs'] - df['xsga'] - df['xint']) / df['ceq']
-#     return df
+# For each month:
+#   For each of the 25 portfolios:
+#       Calculate value-weighted returns
+#       Store these returns for analysis
 
-def calculate_inv(asset_previous, asset_current):
-    """
-    Calculate investment (INV) growth rate.
-    """
-    inventory = (asset_current - asset_previous) / asset_previous
-    return inventory
+# Analysis can then proceed with these portfolio returns
+
+
+comp = load_compustat(data_dir=DATA_DIR)
+crsp = load_CRSP_stock_ciz(data_dir=DATA_DIR)
+ccm = load_CRSP_Comp_Link_Table(data_dir=DATA_DIR)
+
+
+def calculate_op_inv(comp):
+    # Operating Profitability (OP)
+    comp['op'] = (comp['sale'] - comp['cogs'] - comp['xsga'] - comp['xint']) / comp['at'].shift(1)
+    
+    # Investment (INV)
+    comp['inv'] = (comp['at'] - comp['at'].shift(1)) / comp['at'].shift(2)
+    
+    return comp
+
+
+def assign_portfolios(df, date_column='datadate', op_column='op', inv_column='inv'):
+    # Ensure the dataframe is sorted by date
+    df = df.sort_values(by=[date_column])
+    
+    # Assign quintiles for OP and INV
+    df['op_quintile'] = df.groupby(date_column)[op_column].transform(lambda x: pd.qcut(x, 5, labels=False, duplicates='drop'))
+    df['inv_quintile'] = df.groupby(date_column)[inv_column].transform(lambda x: pd.qcut(x, 5, labels=False, duplicates='drop'))
+    
+    # Create a composite key for the 25 portfolios
+    df['portfolio'] = df['op_quintile'].astype(str) + df['inv_quintile'].astype(str)
+    
+    return df
+
+def calculate_portfolio_returns(df, portfolio_column='portfolio', weight_column='me', return_column='ret'):
+    # Calculate value-weighted returns
+    vw_returns = df.groupby(['date', portfolio_column]).apply(lambda x: np.average(x[return_column], weights=x[weight_column]))
+    
+    # Calculate equal-weighted returns
+    ew_returns = df.groupby(['date', portfolio_column])[return_column].mean()
+    
+    return vw_returns, ew_returns
+
+
+
+
 
 def handle_missing_data(data):
     """

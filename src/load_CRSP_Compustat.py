@@ -45,6 +45,10 @@ description_compustat = {
     "gvkey": "Global Company Key",
     "datadate": "Data Date",
     "at": "Assets - Total",
+    "sale": "Sales/Revenue",
+    "cogs": "Cost of Goods Sold",
+    "xsga": "Selling, General and Administrative Expense",
+    "xint": "Interest Expense, Net",
     "pstkl": "Preferred Stock - Liquidating Value",
     "txditc": "Deferred Taxes and Investment Tax Credit",
     "pstkrv": "Preferred Stock - Redemption Value",
@@ -67,7 +71,7 @@ def pull_compustat(wrds_username=WRDS_USERNAME):
     """
     sql_query = """
         SELECT 
-            gvkey, datadate, at, pstkl, txditc,
+            gvkey, datadate, at, sale, cogs, xsga, xint, pstkl, txditc,
             pstkrv, seq, pstk
         FROM 
             comp.funda
@@ -109,7 +113,7 @@ description_crsp = {
 
 def pull_CRSP_stock_ciz(wrds_username=WRDS_USERNAME):
     """Pull necessary CRSP monthly stock data to
-    compute Fama-French factors. Use the new CIZ format.
+    compute factors. Use the new CIZ format.
     """
     sql_query = """
         SELECT 
