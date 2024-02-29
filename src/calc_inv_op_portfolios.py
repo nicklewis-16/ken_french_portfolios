@@ -324,6 +324,42 @@ def calculate_op_inv(comp):
     
     return comp
 
+def wavg(group, avg_name, weight_name):
+    """function to calculate value weighted return
+    """
+    d = group[avg_name]
+    w = group[weight_name]
+    try:
+        return (d * w).sum() / w.sum()
+    except ZeroDivisionError:
+        return np.nan
+
+def create_fama_french_portfolios(ccm4):
+    """Create value-weighted Fama-French portfolios
+    and provide count of firms in each portfolio.
+    """
+    # THIS CODE IS COMPLETED FOR YOU
+    # value-weigthed return
+    vwret = (
+        ccm4.groupby(["jdate", "opport", "invport"])
+        .apply(wavg, "mthret", "wt")
+        .to_frame()
+        .reset_index()
+        .rename(columns={0: "vwret"})
+    )
+    vwret["OIport"] = vwret["opport"] + vwret["invport"]
+
+    # firm count
+    vwret_n = (
+        ccm4.groupby(["jdate", "opport", "invport"])["mthret"]
+        .count()
+        .reset_index()
+        .rename(columns={"mthret": "n_firms"})
+    )
+    vwret_n["OIport"] = vwret_n["opport"] + vwret_n["invport"]
+
+    return vwret, vwret_n
+
 
 
 def create_op_inv_factors(data_dir=DATA_DIR):
