@@ -110,21 +110,21 @@ def task_pull_CRSP_Compustat():
     targets = [
         Path(DATA_DIR) / "pulled" / file for file in 
         [
-            ## src/load_CRSP_stock.py
-            "CRSP_MSF_INDEX_INPUTS.parquet", 
-            "CRSP_MSIX.parquet", 
             ## src/load_CRSP_Compustat.py
             "Compustat.parquet",
             "CRSP_stock_ciz.parquet",
             "CRSP_Comp_Link_Table.parquet",
+            ## src/load_CRSP_stock.py
+            "CRSP_MSF_INDEX_INPUTS.parquet", 
+            "CRSP_MSIX.parquet", 
         ]
     ]
 
     return {
         "actions": [
             "ipython src/config.py",
-            "ipython src/load_CRSP_stock.py",
             "ipython src/load_CRSP_Compustat.py",
+            "ipython src/load_CRSP_stock.py",
         ],
         "targets": targets,
         "file_dep": file_dep,
