@@ -170,7 +170,7 @@ def use_dec_market_equity(crsp2):
 def op_bucket(row):
     """Assign stock to portfolio by op
     """
-    if 0 <= row["op"] <= row["op20"]:
+    if row['opmin'] <= row["op"] <= row["op20"]:
         value = "OP1"
     elif row["op"] <= row["op40"]:
         value = "OP2"
@@ -187,7 +187,7 @@ def op_bucket(row):
 def inv_bucket(row):
     """Assign stock to portfolio by inv
     """
-    if 0 <= row["inv"] <= row["inv20"]:
+    if row['invmin'] <= row["inv"] <= row["inv20"]:
         value = "INV1"
     elif row["inv"] <= row["inv40"]:
         value = "INV2"
@@ -236,18 +236,18 @@ def assign_op_and_inv_portfolios(ccm_jun, crsp3):
 
     # op breakdown
     nyse_op = (
-        nyse.groupby(["jdate"])["op"].describe(percentiles=[0.2, 0.4, 0.6, 0.8]).reset_index()
+        nyse.groupby(["jdate"])["op"].describe(percentiles=[0, 0.2, 0.4, 0.6, 0.8]).reset_index()
     )
-    nyse_op = nyse_op[["jdate", "20%", "40%", "60%", "80%"]].rename(
-        columns={"20%": "op20", "40%": "op40", "60%": "op60", "80%": "op80"}
+    nyse_op = nyse_op[["jdate", "0%", "20%", "40%", "60%", "80%"]].rename(
+        columns={"0%": 'opmin', "20%": "op20", "40%": "op40", "60%": "op60", "80%": "op80"}
     )
 
     # inv breakdown
     nyse_inv = (
-        nyse.groupby(["jdate"])["inv"].describe(percentiles=[0.2, 0.4, 0.6, 0.8]).reset_index()
+        nyse.groupby(["jdate"])["inv"].describe(percentiles=[0, 0.2, 0.4, 0.6, 0.8]).reset_index()
     )
-    nyse_inv = nyse_inv[["jdate", "20%", "40%", "60%", "80%"]].rename(
-        columns={"20%": "inv20", "40%": "inv40", "60%": "inv60", "80%": "inv80"}
+    nyse_inv = nyse_inv[["jdate", "0%", "20%", "40%", "60%", "80%"]].rename(
+        columns={"0%": 'invmin', "20%": "inv20", "40%": "inv40", "60%": "inv60", "80%": "inv80"}
     )
 
     nyse_breaks = pd.merge(nyse_op, nyse_inv, how="inner", on=["jdate"])
