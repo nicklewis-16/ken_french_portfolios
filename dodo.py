@@ -51,52 +51,52 @@ def copy_notebook_to_folder(notebook_stem, origin_folder, destination_folder):
     return command
 
     
-# def task_pull_ken_french_data():
-#     """Pull CRSP/Compustat data from WRDS and save to disk
-#     """
-#     file_dep = [
-#         "./src/config.py", 
-#         "./src/pull_test_data.py"
-#         ]
-#     targets = [
-#         Path(DATA_DIR) / "famafrench" / file for file in 
-#         [
-#             ## src/pull_test_data.py
-#             "5_Industry_Portfolios_daily.xlsx",
-#             "5_Industry_Portfolios_Wout_Div.xlsx",
-#             "5_Industry_Portfolios.xlsx",
-#             "6_Portfolios_ME_CFP_2x3_Wout_Div.xlsx", 
-#             "6_Portfolios_ME_CFP_2x3.xlsx",
-#             "6_Portfolios_ME_DP_2x3_Wout_Div.xlsx",
-#             "6_Portfolios_ME_DP_2x3.xlsx",
-#             "6_Portfolios_ME_EP_2x3_Wout_Div.xlsx",
-#             "6_Portfolios_ME_EP_2x3.xlsx",
-#             "25_Portfolios_OP_INV_5x5_daily.xlsx",
-#             "25_Portfolios_OP_INV_5x5_Wout_Div.xlsx",
-#             "25_Portfolios_OP_INV_5x5.xlsx",
-#             "49_Industry_Portfolios_daily.xlsx",
-#             "49_Industry_Portfolios_Wout_Div.xlsx",
-#             "49_Industry_Portfolios.xlsx",
-#             "Portfolios_Formed_on_CF-P_Wout_Div.xlsx",
-#             "Portfolios_Formed_on_CF-P.xlsx",
-#             "Portfolios_Formed_on_D-P_Wout_Div.xlsx",
-#             "Portfolios_Formed_on_D-P.xlsx",
-#             "Portfolios_Formed_on_E-P_Wout_Div.xlsx",
-#             "Portfolios_Formed_on_E-P.xlsx"
-#         ]
-#     ]
+def task_pull_ken_french_data():
+    """Pull CRSP/Compustat data from WRDS and save to disk
+    """
+    file_dep = [
+        "./src/config.py", 
+        "./src/pull_test_data.py"
+        ]
+    targets = [
+        Path(DATA_DIR) / "famafrench" / file for file in 
+        [
+            ## src/pull_test_data.py
+            "5_Industry_Portfolios_daily.xlsx",
+            "5_Industry_Portfolios_Wout_Div.xlsx",
+            "5_Industry_Portfolios.xlsx",
+            "6_Portfolios_ME_CFP_2x3_Wout_Div.xlsx", 
+            "6_Portfolios_ME_CFP_2x3.xlsx",
+            "6_Portfolios_ME_DP_2x3_Wout_Div.xlsx",
+            "6_Portfolios_ME_DP_2x3.xlsx",
+            "6_Portfolios_ME_EP_2x3_Wout_Div.xlsx",
+            "6_Portfolios_ME_EP_2x3.xlsx",
+            "25_Portfolios_OP_INV_5x5_daily.xlsx",
+            "25_Portfolios_OP_INV_5x5_Wout_Div.xlsx",
+            "25_Portfolios_OP_INV_5x5.xlsx",
+            "49_Industry_Portfolios_daily.xlsx",
+            "49_Industry_Portfolios_Wout_Div.xlsx",
+            "49_Industry_Portfolios.xlsx",
+            "Portfolios_Formed_on_CF-P_Wout_Div.xlsx",
+            "Portfolios_Formed_on_CF-P.xlsx",
+            "Portfolios_Formed_on_D-P_Wout_Div.xlsx",
+            "Portfolios_Formed_on_D-P.xlsx",
+            "Portfolios_Formed_on_E-P_Wout_Div.xlsx",
+            "Portfolios_Formed_on_E-P.xlsx"
+        ]
+    ]
 
-#     return {
-#         "actions": [
-#             "ipython src/config.py",
-#             "ipython src/pull_test_data.py",
-#         ],
-#         "targets": targets,
-#         "file_dep": file_dep,
-#         "clean": True,
-#         "verbosity": 2, # Print everything immediately. This is important in
-#         # case WRDS asks for credentials.
-#     }
+    return {
+        "actions": [
+            "ipython src/config.py",
+            "ipython src/pull_test_data.py",
+        ],
+        "targets": targets,
+        "file_dep": file_dep,
+        "clean": True,
+        "verbosity": 2, # Print everything immediately. This is important in
+        # case WRDS asks for credentials.
+    }
 
 
 def task_pull_CRSP_Compustat():
