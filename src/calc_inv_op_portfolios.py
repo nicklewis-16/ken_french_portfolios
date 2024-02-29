@@ -167,6 +167,40 @@ def use_dec_market_equity(crsp2):
     return crsp3, crsp_jun
 
 
+def op_bucket(row):
+    """Assign stock to portfolio by op
+    """
+    if 0 <= row["op"] <= row["op20"]:
+        value = "OP1"
+    elif row["op"] <= row["op40"]:
+        value = "OP2"
+    elif row["op"] <= row["op60"]:
+        value = "OP3"
+    elif row["op"] <= row["op80"]:
+        value = "OP4"
+    elif row["op"] > row["op80"]:
+        value = "OP5"
+    else:
+        value = ""
+    return value
+
+def inv_bucket(row):
+    """Assign stock to portfolio by inv
+    """
+    if 0 <= row["inv"] <= row["inv20"]:
+        value = "INV1"
+    elif row["inv"] <= row["inv40"]:
+        value = "INV2"
+    elif row["inv"] <= row["inv60"]:
+        value = "INV3"
+    elif row["inv"] <= row["inv80"]:
+        value = "INV4"
+    elif row["inv"] > row["inv80"]:
+        value = "INV5"
+    else:
+        value = ""
+    return value
+
 def merge_CRSP_and_Compustat(crsp_jun, comp, ccm):
     ccm["linkenddt"] = ccm["linkenddt"].fillna(pd.to_datetime("today"))
 
@@ -184,6 +218,101 @@ def merge_CRSP_and_Compustat(crsp_jun, comp, ccm):
     ccm_jun = pd.merge(crsp_jun, ccm2, how="inner", on=["permno", "jdate"])
     ccm_jun["beme"] = ccm_jun["be"] * 1000 / ccm_jun["dec_me"]
     return ccm_jun
+
+def assign_op_and_inv_portfolios(ccm_jun, crsp3):
+    # select NYSE stocks for bucket breakdown
+    # legacy data format: exchcd = 1 and positive beme and positive me and shrcd 
+    # in (10,11) and at least 2 years in compustat
+    # new CIZ format: primaryexch == 'N', positive beme, positive me, at least 
+    # 2 years in compustat
+    # shrcd in 10 and 11 is already handled in the code earlier
+    # THIS CODE IS COMPLETED FOR YOU
+    nyse = ccm_jun[
+        (ccm_jun["primaryexch"] == "N") &
+        (ccm_jun["beme"] > 0) &
+        (ccm_jun["me"] > 0) &
+        (ccm_jun["count"] >= 1)
+    ]
+
+    # op breakdown
+    nyse_op = (
+        nyse.groupby(["jdate"])["op"].describe(percentiles=[0.2, 0.4, 0.6, 0.8]).reset_index()
+    )
+    nyse_op = nyse_op[["jdate", "20%", "40%", "60%", "80%"]].rename(
+        columns={"20%": "op20", "40%": "op40", "60%": "op60", "80%": "op80"}
+    )
+
+    # inv breakdown
+    nyse_inv = (
+        nyse.groupby(["jdate"])["inv"].describe(percentiles=[0.2, 0.4, 0.6, 0.8]).reset_index()
+    )
+    nyse_inv = nyse_inv[["jdate", "20%", "40%", "60%", "80%"]].rename(
+        columns={"20%": "inv20", "40%": "inv40", "60%": "inv60", "80%": "inv80"}
+    )
+
+    nyse_breaks = pd.merge(nyse_op, nyse_inv, how="inner", on=["jdate"])
+
+    # join back size and beme breakdown
+    ccm1_jun = pd.merge(ccm_jun, nyse_breaks, how="left", on=["jdate"])
+
+    # assign op portfolio
+    ccm1_jun["opport"] = np.where(
+        (ccm1_jun["beme"] > 0) & (ccm1_jun["me"] > 0) & (ccm1_jun["count"] >= 1),
+        ccm1_jun.apply(op_bucket, axis=1),
+        "",
+    )
+
+    # assign inv portfolio
+    ccm1_jun["invport"] = np.where(
+        (ccm1_jun["beme"] > 0) & (ccm1_jun["me"] > 0) & (ccm1_jun["count"] >= 1),
+        ccm1_jun.apply(inv_bucket, axis=1),
+        "",
+    )
+
+    # create positivebmeme and nonmissport variable
+    ccm1_jun["posbm"] = np.where(
+        (ccm1_jun["beme"] > 0) & (ccm1_jun["me"] > 0) & (ccm1_jun["count"] >= 1), 1, 0
+    )
+    ccm1_jun["nonmissport"] = np.where((ccm1_jun["invport"] != ""), 1, 0)
+        
+    # store portfolio assignment as of June
+
+    june = ccm1_jun[
+        ["permno", "mthcaldt", "jdate", "opport", "invport", "posbm", "nonmissport"]
+    ].copy()
+    june["ffyear"] = june["jdate"].dt.year
+
+    # merge back with monthly records
+    crsp3 = crsp3[
+        [
+            "mthcaldt",
+            "permno",
+            "sharetype",
+            "securitytype",
+            "securitysubtype",
+            "usincflg",
+            "issuertype",
+            "primaryexch",
+            "conditionaltype",
+            "tradingstatusflg",
+            "mthret",
+            "me",
+            "wt",
+            "cumretx",
+            "ffyear",
+            "jdate",
+        ]
+    ]
+    ccm3 = pd.merge(
+        crsp3,
+        june[["permno", "ffyear", "opport", "invport", "posbm", "nonmissport"]],
+        how="left",
+        on=["permno", "ffyear"],
+    )
+
+    # keeping only records that meet the criteria
+    ccm4 = ccm3[(ccm3["wt"] > 0) & (ccm3["posbm"] == 1) & (ccm3["nonmissport"] == 1)]
+    return ccm4
 
 
 def calculate_op_inv(comp):
