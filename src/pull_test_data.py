@@ -47,10 +47,9 @@ portfolio_descriptions = {'Portfolios_Formed_on_E-P': bivariate_ep, #UNIVARIATE 
                           '49_Industry_Portfolios_Wout_Div': industry,
                           '49_Industry_Portfolios_daily': industry
                           }
-
-op_inv_ports = {'25_Portfolios_OP_INV_5x5': f'../data/famafrench/ftp/25_Portfolios_OP_INV_5x5.csv',
-                '25_Portfolios_OP_INV_5x5_Wout_Div': f'../data/famafrench/ftp/25_Portfolios_OP_INV_5x5_Wout_Div.csv',
-                '25_Portfolios_OP_INV_5x5_daily':f'../data/famafrench/ftp/25_Portfolios_OP_INV_5x5_daily.csv'}
+op_inv_ports = {'25_Portfolios_OP_INV_5x5': f'../ken_french_portfolios/data/famafrench/ftp/25_Portfolios_OP_INV_5x5.CSV',
+                '25_Portfolios_OP_INV_5x5_Wout_Div': f'../ken_french_portfolios/data/famafrench/ftp/25_Portfolios_OP_INV_5x5_Wout_Div.CSV',
+                '25_Portfolios_OP_INV_5x5_daily':f'../ken_french_portfolios/data/famafrench/ftp/25_Portfolios_OP_INV_5x5_daily.CSV'}
 
 # Configuration
 base_url = 'https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html'
@@ -273,7 +272,7 @@ def write_dfs_to_excel(file_path, excel_file_name):
     dfs = op_inv_ports_to_dfs(file_path)  # Assuming op_inv_ports_to_dfs is your processing function
     
     # Define the path for the Excel file
-    excel_file_path = f'../data/famafrench/{excel_file_name}.xlsx'
+    excel_file_path = f'../ken_french_portfolios/data/famafrench/{excel_file_name}.xlsx'
     
     with pd.ExcelWriter(excel_file_path, engine='xlsxwriter') as writer:
         dfs[0].to_excel(writer, sheet_name='Description')
