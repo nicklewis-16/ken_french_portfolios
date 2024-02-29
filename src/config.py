@@ -28,6 +28,9 @@ WRDS_USERNAME = config("WRDS_USERNAME", default="")
 START_DATE = '1951-07-01'
 END_DATE = '2024-02-28'
 
+START_DATE = config("START_DATE", default="1951-07-01")
+END_DATE = config("END_DATE", default="2023-12-31")
+
 if __name__ == "__main__":
     
     ## If they don't exist, create the data and output directories
