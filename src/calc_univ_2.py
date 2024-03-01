@@ -156,6 +156,19 @@ crsp = load_CRSP_stock_ciz(data_dir=DATA_DIR)
 ccm = load_CRSP_Comp_Link_Table(data_dir=DATA_DIR)
 
 
+crsp[['permco', 'permno']] = crsp[['permco', 'permno']].astype(int)
+crsp['jdate'] = crsp['mthcaldt'] + MonthEnd(0)
+crsp['mthretx'] = pd.to_numeric(crsp['mthretx'], errors='coerce')
+crsp['mthret'] = pd.to_numeric(crsp['mthret'], errors='coerce')
+crsp['year'] = crsp['mthcaldt'].dt.year
+
+annual_ret_ex_div = crsp.groupby(['permno', 'year'])['mthretx'].apply(lambda x: (1 + x).prod() - 1).reset_index(name='annual_ret_ex_div')
+annual_ret_inc_div = crsp.groupby(['permno', 'year'])['mthret'].apply(lambda x: (1 + x).prod() - 1).reset_index(name='annual_ret_inc_div')
+
+crsp = pd.merge(crsp, annual_ret_ex_div, on=['permno', 'year'], how='left')
+crsp = pd.merge(crsp, annual_ret_inc_div, on=['permno', 'year'], how='left')
+
+
 crsp = subset_CRSP_to_common_stock_and_exchanges(crsp)
 crsp2 = calculate_market_equity(crsp)
 crsp3, crsp_jun = use_dec_market_equity(crsp2)
@@ -293,6 +306,63 @@ portfolio_monthly_returns_renamed = portfolio_monthly_returns.rename(columns=nam
 
 portfolio_monthly_returns_final = portfolio_monthly_returns_renamed[new_order]
 
-portfolio_monthly_returns_final.to_excel(OUTPUT_DIR / 'portfolio_vw_returns.xlsx')
 
-#data to be filtered out using START_DATE and END_DATE from config.py
+
+
+
+portfolio_counts = crsp_with_portfolios.groupby(['mthcaldt', 'portfolio']).size().reset_index(name='count')
+crsp_with_portfolios = pd.merge(crsp_with_portfolios, portfolio_counts, on=['mthcaldt', 'portfolio'], how='left')
+crsp_with_portfolios['equal_weight'] = 1 / crsp_with_portfolios['count']
+crsp_with_portfolios['equal_weighted_ret'] = crsp_with_portfolios['mthret'] * crsp_with_portfolios['equal_weight']
+portfolio_monthly_equal_returns = crsp_with_portfolios.groupby(['mthcaldt', 'portfolio'])['equal_weighted_ret'].sum().unstack()
+portfolio_monthly_equal_returns.index.name = 'Date'
+
+number_of_firms = portfolio_counts.pivot(index='mthcaldt', columns='portfolio', values='count')
+number_of_firms.index.name = 'Date'
+
+average_firm_size = crsp_with_portfolios.groupby(['mthcaldt', 'portfolio'])['me'].mean().unstack()
+average_firm_size.index.name = 'Date'
+
+annual_columns_needed = ['permno', 'year', 'annual_ret_inc_div', 'me']
+annual_data = crsp[annual_columns_needed]
+annual_data = crsp.sort_values(by=['permno', 'year']).drop_duplicates(subset=['permno', 'year'], keep='last')
+
+
+annual_portfolio_data = pd.merge(annual_data[['permno', 'year', 'me', 'annual_ret_inc_div']],
+                                  portfolio_assignments[['permno', 'year', 'portfolio']],
+                                  on=['permno', 'year'])
+
+# Calculate total annual market equity per portfolio
+annual_portfolio_me = annual_portfolio_data.groupby(['year', 'portfolio'])['me'].sum().reset_index(name='total_annual_me')
+
+# Merge back to get each stock's proportion of the portfolio's total market equity
+annual_portfolio_data = annual_portfolio_data.merge(annual_portfolio_me, on=['year', 'portfolio'])
+annual_portfolio_data['weight'] = annual_portfolio_data['me'] / annual_portfolio_data['total_annual_me']
+
+# Calculate value-weighted annual returns
+annual_portfolio_data['value_weighted_ret'] = annual_portfolio_data['weight'] * annual_portfolio_data['annual_ret_inc_div']
+value_weighted_annual_returns = annual_portfolio_data.groupby(['year', 'portfolio'])['value_weighted_ret'].sum().reset_index()
+
+# Calculate equally-weighted annual returns
+equally_weighted_annual_returns = annual_portfolio_data.groupby(['year', 'portfolio'])['annual_ret_inc_div'].mean().reset_index()
+equally_weighted_annual_returns.rename(columns={'annual_ret_inc_div': 'equal_weighted_annual_ret'}, inplace=True)
+
+desired_order = ['Negative Values', 'Bottom 30%', 'Mid 40%', 'Top 30%', 'Quintile 1', 'Quintile 2', 'Quintile 3', 'Quintile 4', 'Quintile 5','Decile 1', 'Decile 2', 'Decile 3', 'Decile 4', 'Decile 5', 'Decile 6', 'Decile 7', 'Decile 8', 'Decile 9', 'Decile 10']
+
+value_weighted_annual_returns = value_weighted_annual_returns.pivot(index='year', columns='portfolio', values='value_weighted_ret')
+
+
+equally_weighted_annual_returns = equally_weighted_annual_returns.pivot(index='year', columns='portfolio', values='equal_weighted_annual_ret')
+
+desired_order = ['Negative Values', 'Bottom 30%', 'Mid 40%', 'Top 30%', 'Quintile 1', 'Quintile 2', 'Quintile 3', 'Quintile 4', 'Quintile 5','Decile 1', 'Decile 2', 'Decile 3', 'Decile 4', 'Decile 5', 'Decile 6', 'Decile 7', 'Decile 8', 'Decile 9', 'Decile 10']
+value_weighted_annual_returns = value_weighted_annual_returns[desired_order]
+equally_weighted_annual_returns = equally_weighted_annual_returns[desired_order]
+
+
+with pd.ExcelWriter(OUTPUT_DIR/'ptf_returns.xlsx') as writer:
+    portfolio_monthly_returns.to_excel(writer, sheet_name='Value Weighted Returns')
+    portfolio_monthly_equal_returns.to_excel(writer, sheet_name='Equally Weighted Returns')
+    value_weighted_annual_returns.to_excel(writer, sheet_name='Value Weighted Annual Returns')
+    equally_weighted_annual_returns.to_excel(writer, sheet_name='Equally Weighted Annual Returns')
+    average_firm_size.to_excel(writer, sheet_name='Average Firm Size')
+    number_of_firms.to_excel(writer, sheet_name='Number of Firms')
