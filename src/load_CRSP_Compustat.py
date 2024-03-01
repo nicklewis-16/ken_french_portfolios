@@ -72,7 +72,7 @@ def pull_compustat(wrds_username=WRDS_USERNAME):
     sql_query = """
         SELECT 
             gvkey, datadate, at, sale, cogs, xsga, xint, pstkl, txditc,
-            pstkrv, seq, pstk, ni 
+            pstkrv, seq, pstk, ni, sich
         FROM 
             comp.funda
         WHERE 

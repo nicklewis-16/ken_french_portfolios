@@ -22,7 +22,6 @@ def load_data_from_excel(file_path):
     return data
 
 
-
 # Load your data from Excel
 '''
 This file was created by CMPT_ME_BEME_OP_INV_RETS using the 202312 CRSP database.
