@@ -220,19 +220,19 @@ def merge_CRSP_and_Compustat(crsp_jun, comp, ccm):
     return ccm_jun
 
 def assign_op_and_inv_portfolios(ccm_jun, crsp3):
-    # select NYSE stocks for bucket breakdown
-    # legacy data format: exchcd = 1 and positive beme and positive me and shrcd 
-    # in (10,11) and at least 2 years in compustat
-    # new CIZ format: primaryexch == 'N', positive beme, positive me, at least 
-    # 2 years in compustat
-    # shrcd in 10 and 11 is already handled in the code earlier
-    # THIS CODE IS COMPLETED FOR YOU
-    nyse = ccm_jun[
-        (ccm_jun["primaryexch"] == "N") &
-        (ccm_jun["beme"] > 0) &
-        (ccm_jun["me"] > 0) &
-        (ccm_jun["count"] >= 1)
+    ccm_jun_filtered = ccm_jun[
+        ccm_jun['sale'].notnull() & 
+        (ccm_jun[['cogs', 'xsga', 'xint']].notnull().any(axis=1))
     ]
+
+    # select NYSE stocks for bucket breakdown, adjusted for new data availability criteria
+    nyse = ccm_jun_filtered[
+        (ccm_jun_filtered["primaryexch"] == "N") &
+        (ccm_jun_filtered["beme"] > 0) &
+        (ccm_jun_filtered["me"] > 0) &
+        (ccm_jun_filtered["count"] >= 2)  # ensuring at least 2 years in Compustat, adjusted as per requirement
+    ]
+    
 
     # op breakdown
     nyse_op = (
@@ -316,13 +316,16 @@ def assign_op_and_inv_portfolios(ccm_jun, crsp3):
 
 
 def calculate_op_inv(comp):
-    # Operating Profitability (OP)
-    comp['op'] = (comp['sale'] - comp['cogs'] - comp['xsga'] - comp['xint']) / comp['at'].shift(1)
-    
-    # Investment (INV)
-    comp['inv'] = (comp['at'] - comp['at'].shift(1)) / comp['at'].shift(2)
-    
+    # Adjust OP calculation
+    comp['op'] = (comp['sale'] - comp['cogs'] - comp['xsga'] - comp['xint']) / comp['be'].shift(1)
+    comp['op'] = comp['op'].fillna(0)  # Fill NaN values with 0
+
+    # Adjust INV calculation
+    comp['inv'] = (comp['at'].shift(1) - comp['at'].shift(2)) / comp['at'].shift(2)
+    comp['inv'] = comp['inv'].fillna(0)  # Fill NaN values with 0
+
     return comp
+
 
 def wavg(group, avg_name, weight_name):
     """function to calculate value weighted return
@@ -334,7 +337,7 @@ def wavg(group, avg_name, weight_name):
     except ZeroDivisionError:
         return np.nan
 
-def create_fama_french_portfolios(ccm4):
+def create_op_inv_portfolios(ccm4):
     """Create value-weighted Fama-French portfolios
     and provide count of firms in each portfolio.
     """
@@ -391,8 +394,8 @@ def create_op_inv_factors(data_dir=DATA_DIR):
     ############################
     ## Form OP INV Factors
     ############################
-    # ccm4 = assign_size_and_bm_portfolios(ccm_jun, crsp3) # assign op and inv portfolios
-    # vwret, vwret_n = create_fama_french_portfolios(ccm4) # create op_inv_portfolios
+    ccm4 = assign_op_and_inv_portfolios(ccm_jun, crsp3) # assign op and inv portfolios
+    vwret, vwret_n = create_op_inv_portfolios(ccm4) # create op_inv_portfolios
     # ff_factors, ff_nfirms = create_factors_from_portfolios(vwret, vwret_n) # create factors from op_inv_portfolios
     # return vwret, vwret_n, ff_factors, ff_nfirms
 
