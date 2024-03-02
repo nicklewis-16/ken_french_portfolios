@@ -170,7 +170,7 @@ def use_dec_market_equity(crsp2):
 def op_bucket(row):
     """Assign stock to portfolio by op
     """
-    if row['opmin'] <= row["op"] <= row["op20"]:
+    if row['opmin'] <= row["year_op"] <= row["op20"]:
         value = "OP1"
     elif row["op"] <= row["op40"]:
         value = "OP2"
@@ -187,7 +187,7 @@ def op_bucket(row):
 def inv_bucket(row):
     """Assign stock to portfolio by inv
     """
-    if row['invmin'] <= row["inv"] <= row["inv20"]:
+    if row['invmin'] <= row["year_inv"] <= row["inv20"]:
         value = "INV1"
     elif row["inv"] <= row["inv40"]:
         value = "INV2"
@@ -220,6 +220,12 @@ def merge_CRSP_and_Compustat(crsp_jun, comp, ccm):
     return ccm_jun
 
 def assign_op_and_inv_portfolios(ccm_jun, crsp3):
+    op_df = ccm_jun.groupby(['year', 'permno'])['op'].sum().reset_index().rename(columns={'op': 'year_op'})
+    ccm_jun = pd.merge(ccm_jun, op_df, on=['year', 'permno'], how='left')
+
+    inv_df = ccm_jun.groupby(['year', 'permno'])['inv'].sum().reset_index().rename(columns={'inv': 'year_inv'})
+    ccm_jun = pd.merge(ccm_jun, inv_df, on=['year', 'permno'], how='left')
+
     ccm_jun_filtered = ccm_jun[
         ccm_jun['sale'].notnull() & 
         (ccm_jun[['cogs', 'xsga', 'xint']].notnull().any(axis=1))
@@ -236,7 +242,7 @@ def assign_op_and_inv_portfolios(ccm_jun, crsp3):
 
     # op breakdown
     nyse_op = (
-        nyse.groupby(["jdate"])["op"].describe(percentiles=[0, 0.2, 0.4, 0.6, 0.8]).reset_index()
+        nyse.groupby(["jdate"])["year_op"].describe(percentiles=[0, 0.2, 0.4, 0.6, 0.8]).reset_index()
     )
     nyse_op = nyse_op[["jdate", "0%", "20%", "40%", "60%", "80%"]].rename(
         columns={"0%": 'opmin', "20%": "op20", "40%": "op40", "60%": "op60", "80%": "op80"}
@@ -244,7 +250,7 @@ def assign_op_and_inv_portfolios(ccm_jun, crsp3):
 
     # inv breakdown
     nyse_inv = (
-        nyse.groupby(["jdate"])["inv"].describe(percentiles=[0, 0.2, 0.4, 0.6, 0.8]).reset_index()
+        nyse.groupby(["jdate"])["year_inv"].describe(percentiles=[0, 0.2, 0.4, 0.6, 0.8]).reset_index()
     )
     nyse_inv = nyse_inv[["jdate", "0%", "20%", "40%", "60%", "80%"]].rename(
         columns={"0%": 'invmin', "20%": "inv20", "40%": "inv40", "60%": "inv60", "80%": "inv80"}
