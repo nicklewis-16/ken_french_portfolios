@@ -72,7 +72,7 @@ def pull_compustat(wrds_username=WRDS_USERNAME):
     sql_query = """
         SELECT 
             gvkey, datadate, at, sale, cogs, xsga, xint, pstkl, txditc,
-            pstkrv, seq, pstk, ni 
+            pstkrv, seq, pstk, ni, sich
         FROM 
             comp.funda
         WHERE 
@@ -119,15 +119,16 @@ def pull_CRSP_stock_ciz(wrds_username=WRDS_USERNAME):
         SELECT 
             a.permno, a.permco, a.mthcaldt, 
             a.issuertype, a.securitytype, a.securitysubtype, a.sharetype, 
-            a.usincflg, 
-            a.primaryexch, a.conditionaltype, a.tradingstatusflg,
-            a.mthret, a.mthretx, a.shrout, a.mthprc
+            a.usincflg, a.primaryexch, a.conditionaltype, a.tradingstatusflg,
+            a.mthret, a.mthretx, a.shrout, a.mthprc,
+            b.siccd
         FROM 
             crsp.msf_v2 AS a
+        JOIN crsp.msenames AS b ON a.permno = b.permno 
+        AND b.namedt <= a.mthcaldt AND a.mthcaldt <= b.nameendt
         WHERE 
             a.mthcaldt BETWEEN '01/01/1951' AND '02/28/2024'
-        """
-
+    """
     db = wrds.Connection(wrds_username=wrds_username)
     crsp_m = db.raw_sql(sql_query, date_cols=["mthcaldt"])
     db.close()
