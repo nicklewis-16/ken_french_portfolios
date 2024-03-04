@@ -247,3 +247,4 @@ src/data/temp\.csv
 drafts/draft_bp.pdf
 
 *.vrb
+.doit.db.db
