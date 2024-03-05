@@ -1,7 +1,21 @@
 \documentclass{article}
 \usepackage[utf8]{inputenc}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{lipsum} 
+\usepackage{lastpage} 
 
-\title{Replicate several portfolios in in Ken French’s Data Library}
+\usepackage{ifthen} 
+\pagestyle{fancy}
+\fancyhf{} 
+
+\fancyfoot[R]{%
+  \ifthenelse{\value{page}=4}{%
+    \href{https://doi.org/10.2307/2331394}{Kahle, K.M. and Walkling, R.A. (1996). \textit{The Impact of Industry Classifications on Financial Research. The Journal of Financial and Quantitative Analysis}, 31(3), p.309.}%
+  }{}%
+}
+
+\title{Replicate several portfolios in Ken French’s Data Library}
 \author{}
 \date{}
 
@@ -11,9 +25,9 @@
 
 \section*{Introduction}
 
-The pioneering work of Fama and French have significantly influenced empirical asset pricing through their development of factor models. These models, which articulate the returns to the market factor (Rm-Rf), the size factor (SMB), and the value factor (HML), have been instrumental in academic and practical finance for over three decades. The Fama-French Data Library, that emerged from their seminal paper "Common Risk Factors in the Returns on Stocks and Bonds" (1993), has evolved to become an indispensable asset for researchers and practitioners alike. This library not only facilitates access to the critical stock factors (Mkt, SMB, HML) but also underscores the dynamic nature of financial data and the continual refinement of asset pricing models.
+The pioneering work of Fama and French have significantly influenced empirical asset pricing through their development of factor models. These models, which articulate the returns to the market factor (Rm-Rf), the size factor (SMB), and the value factor (HML), have been instrumental in academic and practical finance for over three decades. The Fama-French Data Library, that emerged from their seminal paper \textit{Common Risk Factors in the Returns on Stocks and Bonds} (1993), has evolved to become an indispensable asset for researchers and practitioners alike. This library not only facilitates access to the critical stock factors (Mkt, SMB, HML) but also underscores the dynamic nature of financial data and the continual refinement of asset pricing models.
 
-Our project is motivated by the process of updating and refining the inputs and methodologies that underpin the Fama-French factor models. Fama and French's meticulous approach to data corrections and rule changes, as described in their recent work in "Production of U.S. Rm-Rf, SMB, and HML in the Fama-French Data Library (2023)", underscores the complexity and the necessity of maintaining the highest accuracy in financial databases like CRSP (Center for Research in Security Prices) and Compustat. These databases, which provide the foundational data for constructing factor portfolios, undergo continual revisions to correct historical errors and adapt to evolving accounting standards and market realities. The adjustments made to account for such corrections directly impact the computed returns of Rm-Rf, SMB, and HML, thereby affecting the reliability and validity of empirical asset pricing research.
+Our project is motivated by the process of updating and refining the inputs and methodologies that underpin the Fama-French factor models. Fama and French's meticulous approach to data corrections and rule changes, as described in their recent work in \textit{Production of U.S. Rm-Rf, SMB, and HML in the Fama-French Data Library} (2023), underscores the complexity and the necessity of maintaining the highest accuracy in financial databases like CRSP (Center for Research in Security Prices) and Compustat. These databases, which provide the foundational data for constructing factor portfolios, undergo continual revisions to correct historical errors and adapt to evolving accounting standards and market realities. The adjustments made to account for such corrections directly impact the computed returns of Rm-Rf, SMB, and HML, thereby affecting the reliability and validity of empirical asset pricing research.
 
 This project aims to replicate the univariate sorts on size, earnings/price (E/P), cashflow/price (CF/P), and dividend yield (D/P), as well as the sorts on operating profitability and investment, using unaggregated CRSP and Compustat data. In doing so, we confront the challenges of accurately linking and processing vast datasets, calculating breakpoints, and sorting stocks into portfolios that reflect the original methodologies of Fama and French. 
 
@@ -87,6 +101,14 @@ Despite rigorous documentation, practical replication efforts often encounter ch
 
 A notable challenge in portfolio sorting was managing the conditional sorting criteria and the intersection of various metrics that is highly sensitive to the accurate calculation of each underlying portfolio. Discrepancies in any of these calculations can cascade through the sorting process, affecting the final portfolio composition.
 
-So, while our replication effort aimed to adhere as closely as possible to the established methodologies, the process of applying conditional sorting criteria and calculating breakpoints introduces a significant potential for variation from the original portfolios and potentially explaining the discrepancies observed in our replication results.
+\subsection*{Final Output and Calculation Breakdown}
+
+A significant obstacle we faced in our replication was the challenge associated with the verification of the final output due to the absence of intermediary computational results. This limitation becomes particularly pronounced when attempting to identify and correct discrepancies, as the process lacks transparency without access to detailed breakdowns of each calculation step. Such a situation makes it difficult to pinpoint errors, requiring, each time, a meticulous review of the entire computational procedure to ensure accuracy.
+
+\subsection*{Data Availability and SIC Code Challenges}
+
+Furthermore, the replication was compounded by missing data points within the code, which made the construction of accurate functions and the execution of complex calculations more difficult. The evolution and changes in Standard Industrial Classification (SIC) codes over an extensive period (80+ years) presented another layer of complexity. 
+
+The discrepancies between the CRSP and Compustat databases regarding a range of values added inconsistencies that significantly impacted the fidelity of replication efforts, as they may introduce variances in the data set that are not present in the original studies. The study on the stability and reliability of financial variables over time by Kahle, K.M. and Walkling, R.A. (1996) in the \textit{Journal of Financial and Quantitative Analysis}, highlights the difficulties in maintaining consistent data classifications over prolonged periods and underscores the potential for classification and data discrepancies to skew results.
 
 \end{document}
