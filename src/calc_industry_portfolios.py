@@ -2,8 +2,9 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 import config
-
-
+from plotnine import *
+from mizani.formatters import comma_format, percent_format
+from datetime import datetime
 OUTPUT_DIR = Path(config.OUTPUT_DIR)
 DATA_DIR = Path(config.DATA_DIR)
 
@@ -59,10 +60,40 @@ def assign_industry(sic_code):
     return 'Other'  # Default category if no ranges match
 
 
+def assign_portfolios(ccm):
+    securities_per_industry = (ccm
+    .groupby(["industry5", "month"])
+    .size()
+    .reset_index(name="n")
+    )
+    return securities_per_industry
+
+def draw_industry_assignment(securities_per_industry):
+    
+    linetypes = ["-", "--", "-.", ":"]
+    n_industries = securities_per_industry["industry5"].nunique()
+
+    securities_per_industry_figure = (
+    ggplot(securities_per_industry, 
+            aes(x="month", y="n", color="industry5", linetype="industry5")) + 
+    geom_line() + 
+    labs(x="", y="", color="", linetype="",
+        title="Monthly number of securities by industry") +
+    scale_x_datetime(date_breaks="10 years", date_labels="%Y") + 
+    scale_y_continuous(labels=comma_format()) +
+    scale_linetype_manual(
+        values=[linetypes[l % len(linetypes)] for l in range(n_industries)]
+    ) 
+    )
+    securities_per_industry_figure.save(OUTPUT_DIR / "securities_per_industry.png", dpi=300)
+    
 
 if __name__ == "__main__":
     comp = load_compustat(data_dir=DATA_DIR)
     crsp = load_CRSP_stock(data_dir=DATA_DIR)
     ccm = load_CRSP_Comp_Link_Table(data_dir=DATA_DIR)
     ccm['industry5'] = ccm['siccd'].apply(assign_industry)
+    sec_per_ind = assign_portfolios(ccm)
+    draw_industry_assignment(sec_per_ind)
+
     

@@ -93,5 +93,5 @@ daily49_eq_wt_ret = dfs6['1']
 
 
 comp = load_compustat(data_dir=DATA_DIR)
-crsp = load_CRSP_stock_ciz(data_dir=DATA_DIR)
+crsp = load_CRSP_stock(data_dir=DATA_DIR)
 ccm = load_CRSP_Comp_Link_Table(data_dir=DATA_DIR)
