@@ -7,8 +7,10 @@ import config
 OUTPUT_DIR = Path(config.OUTPUT_DIR)
 DATA_DIR = Path(config.DATA_DIR)
 
-from load_CRSP_Compustat import *
-from load_CRSP_stock import *
+# from load_CRSP_Compustat import *
+# from load_CRSP_stock import *
+from load_alt_CRSP_Compustat import *
+from load_alt_CRSP_stock import *
 
 
 # Blue print
@@ -348,26 +350,72 @@ def create_op_inv_portfolios(ccm4):
     and provide count of firms in each portfolio.
     """
     # THIS CODE IS COMPLETED FOR YOU
-    # value-weigthed return
-    vwret = (
+    # monthly value-weigthed return
+    vwret_m = (
         ccm4.groupby(["jdate", "opport", "invport"])
         .apply(wavg, "mthret", "wt")
         .to_frame()
         .reset_index()
-        .rename(columns={0: "vwret"})
+        .rename(columns={0: "vwret_m"})
     )
-    vwret["OIport"] = vwret["opport"] + vwret["invport"]
+    vwret_m["OIport"] = vwret_m["opport"] + vwret_m["invport"]
+
+    # monthly equal-weigthed return
+    eq_wavg = (lambda x: np.mean(x['mthret']))
+
+    ewret_m = (
+        ccm4.groupby(["jdate", "opport", "invport"])
+        .apply(eq_wavg)
+        .to_frame()
+        .reset_index()
+        .rename(columns={0: "ewret_m"})
+    )
+    ewret_m["OIport"] = ewret_m["opport"] + ewret_m["invport"]
+
+    # yearly value-weigthed return
+    vwret_y = (
+        ccm4.groupby(["year", "opport", "invport"])
+        .apply(wavg, "mthret", "wt")
+        .to_frame()
+        .reset_index()
+        .rename(columns={0: "vwret_y"})
+    )
+    vwret_y["OIport"] = vwret_y["opport"] + vwret_y["invport"]
+
+    # yearly equal-weigthed return
+    #eq_wavg = (lambda x: np.mean(x['mthret']))
+
+    ewret_y = (
+        ccm4.groupby(["year", "opport", "invport"])
+        .apply(eq_wavg)
+        .to_frame()
+        .reset_index()
+        .rename(columns={0: "ewret_y"})
+    )
+    ewret_y["OIport"] = ewret_y["opport"] + ewret_y["invport"]
 
     # firm count
-    vwret_n = (
+    num_firms = (
         ccm4.groupby(["jdate", "opport", "invport"])["mthret"]
         .count()
         .reset_index()
         .rename(columns={"mthret": "n_firms"})
     )
-    vwret_n["OIport"] = vwret_n["opport"] + vwret_n["invport"]
+    num_firms["OIport"] = num_firms["opport"] + num_firms["invport"]
 
-    return vwret, vwret_n
+    ## market cap
+    avg_market_cap = (lambda x: np.mean(x['me']))
+
+    cap = (
+        ccm4.groupby(["jdate", "opport", "invport"])
+        .apply(avg_market_cap)
+        .to_frame()
+        .reset_index()
+        .rename(columns={0: "m_cap"})
+    )
+    cap["OIport"] = cap["opport"] + cap["invport"]
+
+    return vwret_m, ewret_m, vwret_y, ewret_y, num_firms, cap
 
 
 
@@ -378,7 +426,8 @@ def create_op_inv_factors(data_dir=DATA_DIR):
     ###########################
 
     comp = load_compustat(data_dir=DATA_DIR)
-    crsp = load_CRSP_stock_ciz(data_dir=DATA_DIR)
+    # crsp = load_CRSP_stock_ciz(data_dir=DATA_DIR)
+    crsp = load_CRSP_stock(data_dir=DATA_DIR)
     ccm = load_CRSP_Comp_Link_Table(data_dir=DATA_DIR)
     
     ###########################
@@ -387,8 +436,10 @@ def create_op_inv_factors(data_dir=DATA_DIR):
     # Prep CRSP and Compustat data according to the Fama-French 1993 
     # methodology described in the document linked in the 
     # module's docstring (at the top of this file).
+    
     comp = calc_book_equity_and_years_in_compustat(comp)
     crsp = subset_CRSP_to_common_stock_and_exchanges(crsp)
+
     # crsp['mthret']=crsp['mthret'].fillna(0)
     # crsp['mthretx']=crsp['mthretx'].fillna(0)
     crsp2 = calculate_market_equity(crsp)
@@ -401,7 +452,7 @@ def create_op_inv_factors(data_dir=DATA_DIR):
     ## Form OP INV Factors
     ############################
     ccm4 = assign_op_and_inv_portfolios(ccm_jun, crsp3) # assign op and inv portfolios
-    vwret, vwret_n = create_op_inv_portfolios(ccm4) # create op_inv_portfolios
+    vwret_m, ewret_m, vwret_y, eqret_y, num_firms, cap = create_op_inv_portfolios(ccm4) # create op_inv_portfolios
     # ff_factors, ff_nfirms = create_factors_from_portfolios(vwret, vwret_n) # create factors from op_inv_portfolios
     # return vwret, vwret_n, ff_factors, ff_nfirms
 
