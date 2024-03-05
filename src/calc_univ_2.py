@@ -60,7 +60,7 @@ def use_dec_market_equity(crsp2):
     """
     crsp2["year"] = crsp2["jdate"].dt.year
     crsp2["month"] = crsp2["jdate"].dt.month
-    decme = crsp2[crsp2["month"] == 12]
+    decme = crsp2[crsp2["month"] == 12].copy()
     decme["year"] = decme["year"] - 1 #Shift ME to align with December of t-1
     decme = decme[["permno", "mthcaldt", "jdate", "me", "year"]].rename(
         columns={"me": "dec_me"}
@@ -99,7 +99,7 @@ def use_dec_market_equity(crsp2):
         crsp3["ffmonth"] == 1, crsp3["L_me"], crsp3["mebase"] * crsp3["L_cumretx"]
     )
 
-    decme["year"] = decme["year"] + 1
+    #decme.loc[:, "year"] = decme["year"] - 1
     decme = decme[["permno", "year", "dec_me"]]
 
     # Info as of June
@@ -135,19 +135,17 @@ def use_dec_market_equity(crsp2):
 def merge_CRSP_and_Compustat(crsp_jun, comp, ccm):
     ccm["linkenddt"] = ccm["linkenddt"].fillna(pd.to_datetime("today"))
 
-    ccm1 = pd.merge(
-        comp, ccm, how="left", on=["gvkey"]
-    )
+    ccm1 = pd.merge(comp, ccm, how="left", on=["gvkey"])
     ccm1["yearend"] = ccm1["datadate"] + YearEnd(0)
     ccm1["jdate"] = ccm1["yearend"] + MonthEnd(6)
-    # set link date bounds
-    ccm2 = ccm1[
-        (ccm1["jdate"] >= ccm1["linkdt"]) & (ccm1["jdate"] <= ccm1["linkenddt"])
-    ]
 
-    # link comp and crsp
+    ccm2 = ccm1[(ccm1["jdate"] >= ccm1["linkdt"]) & (ccm1["jdate"] <= ccm1["linkenddt"])]
+
     ccm_jun = pd.merge(crsp_jun, ccm2, how="inner", on=["permno", "jdate"])
     ccm_jun["ep"] = ccm_jun["ni"] * 1000 / ccm_jun["dec_me"]
+    # Add calculations for cf and cfp
+    ccm_jun['cf'] = ccm_jun['ebit'] + ccm_jun['dp'].fillna(0) + ccm_jun['txditc'].fillna(0)
+    ccm_jun['cfp'] = ccm_jun['cf'] / ccm_jun['dec_me']
     return ccm_jun
 
 
@@ -174,195 +172,164 @@ crsp2 = calculate_market_equity(crsp)
 crsp3, crsp_jun = use_dec_market_equity(crsp2)
 ccm_jun = merge_CRSP_and_Compustat(crsp_jun, comp, ccm)
 
-def categorize_ep_exclusive(row, bottom_30_bp, top_30_bp, quintiles_bp, deciles_bp):
+def categorize_metric_exclusive(row, metric, bottom_30_bp, top_30_bp, quintiles_bp, deciles_bp):
+    """
+    Determine categories for a given metric value within a row.
+    This is a placeholder function. Replace its internals based on actual categorization logic.
+    """
+    value = row[metric]
     categories = []
-    
-    if row['ep'] < 0:
-        return ['Negative Values']
-    
-    if row['ep'] <= bottom_30_bp:
-        categories.append('Bottom 30%')
-    elif row['ep'] <= top_30_bp:
-        if row['ep'] > bottom_30_bp:
-            categories.append('Mid 40%')
+
+    if value < 0:
+        categories.append('<=0')
+    elif value <= bottom_30_bp:
+        categories.append('Lo 30')
+    elif value <= top_30_bp:
+        categories.append('Med 40')
     else:
-        categories.append('Top 30%')
-    
-    for idx, q_bp in enumerate(quintiles_bp):
-        if row['ep'] <= q_bp:
-            categories.append(f'Quintile {idx + 1}')
-            break
-    
-    for idx, d_bp in enumerate(deciles_bp):
-        if row['ep'] <= d_bp:
-            categories.append(f'Decile {idx + 1}')
-            break
-            
+        categories.append('Hi 30')
+
+    quintiles = np.searchsorted(quintiles_bp, value, side='right')
+    categories.append(f'Qnt {quintiles+1}')
+
+    deciles = np.searchsorted(deciles_bp, value, side='right')
+    categories.append(f'Dec {deciles+1}')
+
     return categories
 
-nyse_stocks = ccm_jun[ccm_jun['primaryexch'] == 'N']
-categorized_data_exclusive = []
+def categorize_stocks_by_metric(dataframe, metric, category_name):
+    """
+    Categorize stocks by a specified metric and directly append the categories to the dataframe.
+    """
+    # Calculate breakpoints for the NYSE stocks each year to define categories
+    for year, group in dataframe.groupby('year'):
+        non_negative = group[group[metric] >= 0]
+        negative = group[group[metric] < 0]
 
-for year, group in nyse_stocks.groupby('year'):
-    non_negative = group[group['ep'] >= 0].copy()  # Separate non-negative e/p values
-    negative = group[group['ep'] < 0].copy()  # Separate negative e/p values
+        sorted_values = non_negative[metric].sort_values()
+
+        bottom_30_bp = sorted_values.quantile(q=0.3)
+        top_30_bp = sorted_values.quantile(q=0.7)
+        quintiles_bp = sorted_values.quantile(q=np.arange(0.2, 1.01, 0.2))
+        deciles_bp = sorted_values.quantile(q=np.arange(0.1, 1.01, 0.1))
+
+        # Assign categories based on calculated breakpoints
+        dataframe.loc[non_negative.index, category_name] = non_negative.apply(
+            lambda row: categorize_metric_exclusive(row, metric, bottom_30_bp, top_30_bp, quintiles_bp.values, deciles_bp.values), axis=1)
+        dataframe.loc[negative.index, category_name] = [['Negative Values']] * len(negative)
+
+    return dataframe
+
+
+categorize_stocks_by_metric(ccm_jun, 'ep', 'ep_categories')
+categorize_stocks_by_metric(ccm_jun, 'cfp', 'cfp_categories')
+
+def update_portfolio_assignments(df, category_field, portfolio_prefix):
+    """
+    Update the dataframe with portfolio assignments based on the categories.
+
+    Args:
+    - df: DataFrame to be updated.
+    - category_field: Field name containing the categories.
+    - portfolio_prefix: Prefix for the portfolio names.
+    """
+    # Explode the DataFrame to work with one category per row
+    df_exploded = df.explode(category_field)
+
+    # Initialize portfolio columns to NaN
+    unique_categories = df_exploded[category_field].dropna().unique()
+    for category in unique_categories:
+        portfolio_name = f"{portfolio_prefix}_{category}"
+        df[portfolio_name] = np.nan
+
+    for index, row in df_exploded.dropna(subset=[category_field]).iterrows():
+        category = row[category_field]
+        portfolio_name = f"{portfolio_prefix}_{category}"
+        df.at[index, portfolio_name] = row['permno']
+
+    return df
+
+
+ccm_jun = update_portfolio_assignments(ccm_jun, 'ep_categories', 'ep')
+ccm_jun = update_portfolio_assignments(ccm_jun, 'cfp_categories', 'cfp')
+
+def calculate_portfolio_returns(df, portfolio_prefix):
+    portfolio_returns = {}
+    for column in df.columns:
+        if column.startswith(portfolio_prefix):
+            if column in df and pd.api.types.is_numeric_dtype(df[column]):
+                # Calculate weighted average return for each group
+                weighted_avg = df.groupby('jdate').apply(
+                    lambda x: np.average(x['mthret'].fillna(0), weights=x[column].fillna(0))
+                    if not x[column].isnull().all() else np.nan
+                )
+                portfolio_returns[column] = weighted_avg
+            else:
+                print(f"Skipping {column} due to non-numeric or missing data")
     
-    sorted_non_negative = non_negative.sort_values(by='ep')
+    return pd.DataFrame(portfolio_returns)
+
+
+portfolio_returns_ep = calculate_portfolio_returns(ccm_jun, 'ep')
+portfolio_returns_cfp = calculate_portfolio_returns(ccm_jun, 'cfp')
+
+def calculate_portfolio_monthly_returns(df, metric_categories):
+    # Calculate value-weighted returns
+    df['weight'] = df['me'] / df.groupby(['jdate', metric_categories])['me'].transform('sum')
+    df['weighted_ret'] = df['mthret'] * df['weight']
+    value_weighted = df.groupby(['jdate', metric_categories])['weighted_ret'].sum().reset_index(name='value_weighted_ret')
+
+    # Calculate equal-weighted returns
+    df['equal_weight'] = 1 / df.groupby(['jdate', metric_categories])['permno'].transform('count')
+    df['equal_weighted_ret'] = df['mthret'] * df['equal_weight']
+    equal_weighted = df.groupby(['jdate', metric_categories])['equal_weighted_ret'].sum().reset_index(name='equal_weighted_ret')
+
+    return value_weighted, equal_weighted
+
+def calculate_portfolio_annual_returns(df, metric_categories):
+    df['annual_ret'] = df.groupby(['permno', 'year'])['mthret'].transform(lambda x: (1 + x).prod() - 1)
+    # Value-weighted
+    df['annual_weight'] = df['me'] / df.groupby(['year', metric_categories])['me'].transform('sum')
+    df['annual_weighted_ret'] = df['annual_ret'] * df['annual_weight']
+    value_weighted_annual = df.groupby(['year', metric_categories])['annual_weighted_ret'].sum().reset_index(name='value_weighted_annual_ret')
+
+    # Equal-weighted
+    equal_weighted_annual = df.groupby(['year', metric_categories])['annual_ret'].mean().reset_index(name='equal_weighted_annual_ret')
+
+    return value_weighted_annual, equal_weighted_annual
+
+
+ccm_jun['ep_categories'] = ccm_jun['ep_categories'].apply(lambda x: ', '.join(x) if isinstance(x, list) else x)
+ccm_jun['cfp_categories'] = ccm_jun['cfp_categories'].apply(lambda x: ', '.join(x) if isinstance(x, list) else x)
+
+
+value_weighted_ep, equal_weighted_ep = calculate_portfolio_monthly_returns(ccm_jun, 'ep_categories')
+value_weighted_cfp, equal_weighted_cfp = calculate_portfolio_monthly_returns(ccm_jun, 'cfp_categories')
+
+value_weighted_annual_ep, equal_weighted_annual_ep = calculate_portfolio_annual_returns(ccm_jun, 'ep_categories')
+value_weighted_annual_cfp, equal_weighted_annual_cfp = calculate_portfolio_annual_returns(ccm_jun, 'cfp_categories')
+
+def calculate_firm_size_and_count(df, metric_categories):
+    average_firm_size = df.groupby(['year', metric_categories])['me'].mean().reset_index(name='average_me')
+    number_of_firms = df.groupby(['year', metric_categories]).size().reset_index(name='num_firms').rename(columns={0: 'count'})
+    return average_firm_size, number_of_firms
+
+average_size_ep, firm_count_ep = calculate_firm_size_and_count(ccm_jun, 'ep_categories')
+average_size_cfp, firm_count_cfp = calculate_firm_size_and_count(ccm_jun, 'cfp_categories')
+
+
+with pd.ExcelWriter(OUTPUT_DIR / 'portfolio_metrics.xlsx') as writer:
+    value_weighted_ep.to_excel(writer, sheet_name='Value Weighted Monthly EP')
+    equal_weighted_ep.to_excel(writer, sheet_name='Equal Weighted Monthly EP')
+    value_weighted_cfp.to_excel(writer, sheet_name='Value Weighted Monthly CFP')
+    equal_weighted_cfp.to_excel(writer, sheet_name='Equal Weighted Monthly CFP')
     
-    bottom_30_bp = sorted_non_negative['ep'].quantile(q=0.3)
-    top_30_bp = sorted_non_negative['ep'].quantile(q=0.7)
-    quintiles_bp = sorted_non_negative['ep'].quantile(q=np.arange(0.2, 1.01, 0.2)).values
-    deciles_bp = sorted_non_negative['ep'].quantile(q=np.arange(0.1, 1.01, 0.1)).values
+    value_weighted_annual_ep.to_excel(writer, sheet_name='Value Weighted Annual EP')
+    equal_weighted_annual_ep.to_excel(writer, sheet_name='Equal Weighted Annual EP')
+    value_weighted_annual_cfp.to_excel(writer, sheet_name='Value Weighted Annual CFP')
+    equal_weighted_annual_cfp.to_excel(writer, sheet_name='Equal Weighted Annual CFP')
     
-    sorted_non_negative['categories'] = sorted_non_negative.apply(categorize_ep_exclusive, axis=1,
-                                                                   bottom_30_bp=bottom_30_bp, top_30_bp=top_30_bp,
-                                                                   quintiles_bp=quintiles_bp, deciles_bp=deciles_bp)
-    
-    negative['categories'] = [['Negative Values'] for _ in range(len(negative))]
-    
-    categorized_data_exclusive.extend(sorted_non_negative.to_dict('records'))
-    categorized_data_exclusive.extend(negative.to_dict('records'))
-
-categorized_df_exclusive = pd.DataFrame(categorized_data_exclusive)
-
-
-portfolio_categories = ['Negative Values', 'Bottom 30%', 'Mid 40%', 'Top 30%'] + \
-                       [f'Quintile {i+1}' for i in range(5)] + [f'Decile {i+1}' for i in range(10)]
-
-yearly_portfolios = {year: {category: [] for category in portfolio_categories} for year in ccm_jun['year'].unique()}
-
-def update_portfolios(row):
-    year = row['year']
-    for category in row['categories']:
-        yearly_portfolios[year][category].append(row['permno'])
-
-categorized_df_exclusive.apply(update_portfolios, axis=1)
-
-for year in yearly_portfolios:
-    for category in yearly_portfolios[year]:
-        yearly_portfolios[year][category] = list(set(yearly_portfolios[year][category]))
-
-yearly_portfolios_example = yearly_portfolios[next(iter(yearly_portfolios))]
-
-
-
-crsp_df_cleaned = crsp[['permno', 'mthcaldt', 'mthret', 'me']].dropna(subset=['mthret', 'me'])
-crsp_df_cleaned['mthcaldt'] = pd.to_datetime(crsp_df_cleaned['mthcaldt'])
-crsp_df_cleaned = crsp_df_cleaned.fillna(0)
-
-
-portfolio_returns = pd.DataFrame(columns=portfolio_categories)
-
-
-portfolio_assignments = pd.DataFrame([
-    {"year": year, "permno": permno, "portfolio": portfolio}
-    for year, portfolios in yearly_portfolios.items()
-    for portfolio, permnos in portfolios.items()
-    for permno in permnos
-])
-
-
-crsp_with_portfolios = pd.merge(crsp_df_cleaned, portfolio_assignments, on='permno', how='left')
-
-crsp_with_portfolios['year'] = crsp_with_portfolios['mthcaldt'].dt.year
-
-me_sums = crsp_with_portfolios.groupby(['mthcaldt', 'portfolio'])['me'].sum().reset_index(name='me_sum')
-
-crsp_with_portfolios = pd.merge(crsp_with_portfolios, me_sums, on=['mthcaldt', 'portfolio'], how='left')
-
-crsp_with_portfolios['weight'] = crsp_with_portfolios['me'] / crsp_with_portfolios['me_sum']
-
-crsp_with_portfolios['weighted_ret'] = crsp_with_portfolios['mthret'] * crsp_with_portfolios['weight']
-
-portfolio_monthly_returns = crsp_with_portfolios.groupby(['mthcaldt', 'portfolio'])['weighted_ret'].sum().unstack()
-
-portfolio_monthly_returns.index.name = 'Date'
-
-name_mapping = {
-    'Negative Values': '<=0',
-    'Bottom 30%': 'Lo 30',
-    'Mid 40%': 'Med 40',
-    'Top 30%': 'Hi 30',
-    'Quintile 1': 'Lo 20',
-    'Quintile 2': 'Qnt 2',
-    'Quintile 3': 'Qnt 3',
-    'Quintile 4': 'Qnt 4',
-    'Quintile 5': 'Hi 20',
-    'Decile 1': 'Lo 10',
-    'Decile 2': '2 Dec',
-    'Decile 3': '3 Dec',
-    'Decile 4': '4 Dec',
-    'Decile 5': '5 Dec',
-    'Decile 6': '6 Dec',
-    'Decile 7': '7 Dec',
-    'Decile 8': '8 Dec',
-    'Decile 9': '9 Dec',
-    'Decile 10': 'Hi 10'
-}
-
-new_order = ['<=0', 'Lo 30', 'Med 40', 'Hi 30', 'Lo 20', 'Qnt 2', 'Qnt 3', 'Qnt 4', 'Hi 20', 'Lo 10', '2 Dec', '3 Dec', '4 Dec', '5 Dec', '6 Dec', '7 Dec', '8 Dec', '9 Dec', 'Hi 10']
-
-portfolio_monthly_returns_renamed = portfolio_monthly_returns.rename(columns=name_mapping)
-
-portfolio_monthly_returns_final = portfolio_monthly_returns_renamed[new_order]
-
-
-
-
-
-portfolio_counts = crsp_with_portfolios.groupby(['mthcaldt', 'portfolio']).size().reset_index(name='count')
-crsp_with_portfolios = pd.merge(crsp_with_portfolios, portfolio_counts, on=['mthcaldt', 'portfolio'], how='left')
-crsp_with_portfolios['equal_weight'] = 1 / crsp_with_portfolios['count']
-crsp_with_portfolios['equal_weighted_ret'] = crsp_with_portfolios['mthret'] * crsp_with_portfolios['equal_weight']
-portfolio_monthly_equal_returns = crsp_with_portfolios.groupby(['mthcaldt', 'portfolio'])['equal_weighted_ret'].sum().unstack()
-portfolio_monthly_equal_returns.index.name = 'Date'
-
-number_of_firms = portfolio_counts.pivot(index='mthcaldt', columns='portfolio', values='count')
-number_of_firms.index.name = 'Date'
-
-average_firm_size = crsp_with_portfolios.groupby(['mthcaldt', 'portfolio'])['me'].mean().unstack()
-average_firm_size.index.name = 'Date'
-
-annual_columns_needed = ['permno', 'year', 'annual_ret_inc_div', 'me']
-annual_data = crsp[annual_columns_needed]
-annual_data = crsp.sort_values(by=['permno', 'year']).drop_duplicates(subset=['permno', 'year'], keep='last')
-
-
-annual_portfolio_data = pd.merge(annual_data[['permno', 'year', 'me', 'annual_ret_inc_div']],
-                                  portfolio_assignments[['permno', 'year', 'portfolio']],
-                                  on=['permno', 'year'])
-
-# Calculate total annual market equity per portfolio
-annual_portfolio_me = annual_portfolio_data.groupby(['year', 'portfolio'])['me'].sum().reset_index(name='total_annual_me')
-
-# Merge back to get each stock's proportion of the portfolio's total market equity
-annual_portfolio_data = annual_portfolio_data.merge(annual_portfolio_me, on=['year', 'portfolio'])
-annual_portfolio_data['weight'] = annual_portfolio_data['me'] / annual_portfolio_data['total_annual_me']
-
-# Calculate value-weighted annual returns
-annual_portfolio_data['value_weighted_ret'] = annual_portfolio_data['weight'] * annual_portfolio_data['annual_ret_inc_div']
-value_weighted_annual_returns = annual_portfolio_data.groupby(['year', 'portfolio'])['value_weighted_ret'].sum().reset_index()
-
-# Calculate equally-weighted annual returns
-equally_weighted_annual_returns = annual_portfolio_data.groupby(['year', 'portfolio'])['annual_ret_inc_div'].mean().reset_index()
-equally_weighted_annual_returns.rename(columns={'annual_ret_inc_div': 'equal_weighted_annual_ret'}, inplace=True)
-
-desired_order = ['Negative Values', 'Bottom 30%', 'Mid 40%', 'Top 30%', 'Quintile 1', 'Quintile 2', 'Quintile 3', 'Quintile 4', 'Quintile 5','Decile 1', 'Decile 2', 'Decile 3', 'Decile 4', 'Decile 5', 'Decile 6', 'Decile 7', 'Decile 8', 'Decile 9', 'Decile 10']
-
-value_weighted_annual_returns = value_weighted_annual_returns.pivot(index='year', columns='portfolio', values='value_weighted_ret')
-
-
-equally_weighted_annual_returns = equally_weighted_annual_returns.pivot(index='year', columns='portfolio', values='equal_weighted_annual_ret')
-
-desired_order = ['Negative Values', 'Bottom 30%', 'Mid 40%', 'Top 30%', 'Quintile 1', 'Quintile 2', 'Quintile 3', 'Quintile 4', 'Quintile 5','Decile 1', 'Decile 2', 'Decile 3', 'Decile 4', 'Decile 5', 'Decile 6', 'Decile 7', 'Decile 8', 'Decile 9', 'Decile 10']
-value_weighted_annual_returns = value_weighted_annual_returns[desired_order]
-equally_weighted_annual_returns = equally_weighted_annual_returns[desired_order]
-
-
-with pd.ExcelWriter(OUTPUT_DIR/'ptf_returns.xlsx') as writer:
-    portfolio_monthly_returns.to_excel(writer, sheet_name='Value Weighted Returns')
-    portfolio_monthly_equal_returns.to_excel(writer, sheet_name='Equally Weighted Returns')
-    value_weighted_annual_returns.to_excel(writer, sheet_name='Value Weighted Annual Returns')
-    equally_weighted_annual_returns.to_excel(writer, sheet_name='Equally Weighted Annual Returns')
-    average_firm_size.to_excel(writer, sheet_name='Average Firm Size')
-    number_of_firms.to_excel(writer, sheet_name='Number of Firms')
+    average_size_ep.to_excel(writer, sheet_name='Average Size EP')
+    firm_count_ep.to_excel(writer, sheet_name='Firm Count EP')
+    average_size_cfp.to_excel(writer, sheet_name='Average Size CFP')
+    firm_count_cfp.to_excel(writer, sheet_name='Firm Count CFP')
