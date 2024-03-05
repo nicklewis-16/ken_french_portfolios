@@ -13,6 +13,9 @@ ind5_port = fp_root / '5_Industry_Portfolios.xlsx'
 ind5_daily = fp_root / '5_Industry_Portfolios_daily.xlsx'
 ind5_port_Woutdiv = fp_root / '5_Industry_Portfolios_Wout_Div.xlsx'
 
+ind49_port = fp_root / '49_Industry_Portfolios.xlsx'
+ind49_daily = fp_root / '49_Industry_Portfolios_daily.xlsx'
+ind49_port_Woutdiv = fp_root / '49_Industry_Portfolios_Wout_Div.xlsx'
 
 def load_data_from_excel(file_path):
     # Load all sheets except for the first one (description)
@@ -40,28 +43,53 @@ Copyright 2024 Kenneth R. French
 7 : Value-Weighted Average of BE/ME (98 rows x 5 cols)
 '''
 dfs = load_data_from_excel(ind5_port)
-div_monthly_val_wt_ret = dfs['0']
-div_monthly_eq_wt_ret = dfs['1']
-div_ann_val_wt_ret = dfs['2']
-div_ann_eq_wt_ret = dfs['3']
-div_num_firms = dfs['4']
-div_ave_frm_sz = dfs['5']
-div_beme = dfs['6']
-div_val_wt_ave_beme = dfs['7']
+div5_monthly_val_wt_ret = dfs['0']
+div5_monthly_eq_wt_ret = dfs['1']
+div5_ann_val_wt_ret = dfs['2']
+div5_ann_eq_wt_ret = dfs['3']
+div5_num_firms = dfs['4']
+div5_ave_frm_sz = dfs['5']
+div5_beme = dfs['6']
+div5_val_wt_ave_beme = dfs['7']
 
 dfs2 = load_data_from_excel(ind5_port_Woutdiv)
-monthly_val_wt_ret = dfs2['0']
-monthly_eq_wt_ret = dfs2['1']
-ann_val_wt_ret = dfs2['2']
-ann_eq_wt_ret = dfs2['3']
-num_firms = dfs2['4']
-ave_frm_sz = dfs2['5']
-beme = dfs2['6']
-val_wt_ave_beme = dfs['7']
+monthly5_val_wt_ret = dfs2['0']
+monthly5_eq_wt_ret = dfs2['1']
+ann5_val_wt_ret = dfs2['2']
+ann5_eq_wt_ret = dfs2['3']
+num5_firms = dfs2['4']
+ave5_frm_sz = dfs2['5']
+beme5 = dfs2['6']
+val5_wt_ave_beme = dfs2['7']
 
 dfs3 = load_data_from_excel(ind5_daily)
-daily_val_wt_ret = dfs3['0']
-daily_eq_wt_ret = dfs3['1']
+daily5_val_wt_ret = dfs3['0']
+daily5_eq_wt_ret = dfs3['1']
+
+
+dfs4 = load_data_from_excel(ind49_port)
+div49_monthly_val_wt_ret = dfs4['0']
+div49_monthly_eq_wt_ret = dfs4['1']
+div49_ann_val_wt_ret = dfs4['2']
+div49_ann_eq_wt_ret = dfs4['3']
+div49_num_firms = dfs4['4']
+div49_ave_frm_sz = dfs4['5']
+div49_beme = dfs4['6']
+div49_val_wt_ave_beme = dfs4['7']
+
+dfs5 = load_data_from_excel(ind49_port_Woutdiv)
+monthly49_val_wt_ret = dfs5['0']
+monthly49_eq_wt_ret = dfs5['1']
+ann49_val_wt_ret = dfs5['2']
+ann49_eq_wt_ret = dfs5['3']
+num49_firms = dfs5['4']
+ave49_frm_sz = dfs5['5']
+beme49 = dfs5['6']
+val49_wt_ave_beme = dfs5['7']
+
+dfs6 = load_data_from_excel(ind49_daily)
+daily49_val_wt_ret = dfs6['0']
+daily49_eq_wt_ret = dfs6['1']
 
 
 comp = load_compustat(data_dir=DATA_DIR)
