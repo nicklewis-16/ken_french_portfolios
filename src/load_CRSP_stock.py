@@ -1,22 +1,3 @@
-"""
-Functions to pull and calculate the value and equal weighted CRSP indices.
-
- - Data for indices: https://wrds-www.wharton.upenn.edu/data-dictionary/crsp_a_indexes/
- - Data for raw stock data: https://wrds-www.wharton.upenn.edu/pages/get-data/center-research-security-prices-crsp/annual-update/stock-security-files/monthly-stock-file/
- - Why we can't perfectly replicate them: https://wrds-www.wharton.upenn.edu/pages/support/support-articles/crsp/index-and-deciles/constructing-value-weighted-return-series-matches-vwretd-crsp-monthly-value-weighted-returns-includes-distributions/
- - Methodology used: https://wrds-www.wharton.upenn.edu/documents/396/CRSP_US_Stock_Indices_Data_Descriptions.pdf
- - Useful link: https://www.tidy-finance.org/python/wrds-crsp-and-compustat.html
-
-Thank you to Tobias Rodriguez del Pozo for his assistance in writing this
-code.
-
-Note: This code is based on the old CRSP SIZ format. Information
-about the new CIZ format can be found here:
-
- - Transition FAQ: https://wrds-www.wharton.upenn.edu/pages/support/manuals-and-overviews/crsp/stocks-and-indices/crsp-stock-and-indexes-version-2/crsp-ciz-faq/
- - CRSP Metadata Guide: https://wrds-www.wharton.upenn.edu/documents/1941/CRSP_METADATA_GUIDE_STOCK_INDEXES_FLAT_FILE_FORMAT_2_0_CIZ_09232022v.pdf
-
-"""
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from pathlib import Path
@@ -29,8 +10,10 @@ import config
 
 DATA_DIR = Path(config.DATA_DIR)
 WRDS_USERNAME = config.WRDS_USERNAME
+WRDS_PASSWORD = config.WRDS_PASSWORD
 START_DATE = config.START_DATE
 END_DATE = config.END_DATE
+
 
 
 def pull_CRSP_monthly_file(
@@ -50,30 +33,28 @@ def pull_CRSP_monthly_file(
     start_date = start_date - relativedelta(months=1)
     start_date = start_date.strftime("%Y-%m-%d")
 
-    query = f"""
-    SELECT 
-        date,
-        msf.permno, msf.permco, shrcd, exchcd, comnam, shrcls, 
-        ret, retx, dlret, dlretx, dlstcd,
-        prc, altprc, vol, shrout, cfacshr, cfacpr,
-        naics, siccd
-    FROM crsp.msf AS msf
-    LEFT JOIN 
-        crsp.msenames as msenames
-    ON 
-        msf.permno = msenames.permno AND
-        msenames.namedt <= msf.date AND
-        msf.date <= msenames.nameendt
-    LEFT JOIN 
-        crsp.msedelist as msedelist
-    ON 
-        msf.permno = msedelist.permno AND
-        date_trunc('month', msf.date)::date =
-        date_trunc('month', msedelist.dlstdt)::date
-    WHERE 
-        msf.date BETWEEN '{start_date}' AND '{end_date}' AND 
-        msenames.shrcd IN (10, 11, 20, 21, 40, 41, 70, 71, 73)
+    query = (
+    f"""SELECT msf.permno, msf.date, 
+            date_trunc('month', msf.date)::date as month, 
+            msf.ret, msf.shrout, msf.altprc, 
+            msenames.exchcd, msenames.siccd, 
+            msedelist.dlret, msedelist.dlstcd, 
+            msf.permno, msf.permco, shrcd, comnam, shrcls, 
+            retx, dlret, dlretx, prc, altprc, vol, cfacshr, cfacpr,
+            naics
+        FROM crsp.msf AS msf 
+        LEFT JOIN crsp.msenames as msenames 
+        ON msf.permno = msenames.permno AND 
+        msenames.namedt <= msf.date AND 
+        msf.date <= msenames.nameendt 
+        LEFT JOIN crsp.msedelist as msedelist 
+        ON msf.permno = msedelist.permno AND 
+        date_trunc('month', msf.date)::date = 
+        date_trunc('month', msedelist.dlstdt)::date 
+        WHERE msf.date BETWEEN '{start_date}' AND '{end_date}'
+            AND msenames.shrcd IN (10, 11)
     """
+    )
     with wrds.Connection(wrds_username=wrds_username) as db:
         df = db.raw_sql(
             query, date_cols=["date", "namedt", "nameendt", "dlstdt"]

@@ -112,7 +112,7 @@ def task_pull_CRSP_Compustat():
         [
             ## src/load_CRSP_Compustat.py
             "Compustat.parquet",
-            "CRSP_stock_ciz.parquet",
+            "CRSP_stock.parquet",
             "CRSP_Comp_Link_Table.parquet",
             ## src/load_CRSP_stock.py
             "CRSP_MSF_INDEX_INPUTS.parquet", 

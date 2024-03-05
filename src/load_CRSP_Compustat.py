@@ -1,30 +1,4 @@
-"""
-This module pulls and saves data on fundamentals from CRSP and Compustat.
-It pulls fundamentals data from Compustat needed to calculate
-book equity, and the data needed from CRSP to calculate market equity.
 
-Note: This code uses the new CRSP CIZ format. Information
-about the differences between the SIZ and CIZ format can be found here:
-
- - Transition FAQ: https://wrds-www.wharton.upenn.edu/pages/support/manuals-and-overviews/crsp/stocks-and-indices/crsp-stock-and-indexes-version-2/crsp-ciz-faq/
- - CRSP Metadata Guide: https://wrds-www.wharton.upenn.edu/documents/1941/CRSP_METADATA_GUIDE_STOCK_INDEXES_FLAT_FILE_FORMAT_2_0_CIZ_09232022v.pdf
-
-For information about Compustat variables, see:
-https://wrds-www.wharton.upenn.edu/documents/1583/Compustat_Data_Guide.pdf
-
-For more information about variables in CRSP, see:
-https://wrds-www.wharton.upenn.edu/documents/396/CRSP_US_Stock_Indices_Data_Descriptions.pdf
-I don't think this is updated for the new CIZ format, though.
-
-Here is some information about the old SIZ CRSP format:
-https://wrds-www.wharton.upenn.edu/documents/1095/CRSP_Flat_File_formats_and_notes.pdf
-
-
-The following is an outdated programmer's guide to CRSP:
-https://wrds-www.wharton.upenn.edu/documents/400/CRSP_Programmers_Guide.pdf
-
-
-"""
 
 import pandas as pd
 from pandas.tseries.offsets import MonthEnd, YearEnd
@@ -38,135 +12,237 @@ from pathlib import Path
 OUTPUT_DIR = Path(config.OUTPUT_DIR)
 DATA_DIR = Path(config.DATA_DIR)
 WRDS_USERNAME = config.WRDS_USERNAME
+WRDS_PASSWORD = config.WRDS_PASSWORD
 START_DATE = config.START_DATE
 END_DATE = config.END_DATE
 
+import pandas as pd
+import numpy as np
+import sqlite3
 
-description_compustat = {
-    "gvkey": "Global Company Key",
-    "datadate": "Data Date",
-    "at": "Assets - Total",
-    "sale": "Sales/Revenue",
-    "cogs": "Cost of Goods Sold",
-    "xsga": "Selling, General and Administrative Expense",
-    "xint": "Interest Expense, Net",
-    "pstkl": "Preferred Stock - Liquidating Value",
-    "txditc": "Deferred Taxes and Investment Tax Credit",
-    "pstkrv": "Preferred Stock - Redemption Value",
-    # This item represents the total dollar value of the net number of
-    # preferred shares outstanding multiplied by the voluntary
-    # liquidation or redemption value per share.
-    "seq": "Stockholders' Equity - Parent",
-    "pstk": "Preferred/Preference Stock (Capital) - Total",
-    "indfmt": "Industry Format",
-    "datafmt": "Data Format",
-    "popsrc": "Population Source",
-    "consol": "Consolidation",
+from plotnine import *
+from mizani.formatters import comma_format, percent_format
+from datetime import datetime
+
+
+start_date = "01/01/1960"
+end_date = "02/28/2024"
+
+from sqlalchemy import create_engine
+
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+connection_string = (
+  "postgresql+psycopg2://"
+  f"{WRDS_USERNAME}:{WRDS_PASSWORD}"
+  "@wrds-pgdata.wharton.upenn.edu:9737/wrds"
+)
+
+wrds = create_engine(connection_string, pool_pre_ping=True)
+
+def pull_CRSP_stock():
+    """
+    Pulls CRSP stock data from the WRDS database.
+
+    Parameters:
+    - wrds_username (str): WRDS username (default: WRDS_USERNAME)
+
+    Returns:
+    - crsp_monthly (pd.DataFrame): CRSP stock data
+
+    """
+    crsp_monthly_query = (
+    "SELECT msf.permno, msf.permco, msf.date, "
+            "date_trunc('month', msf.date)::date as month, "
+            "msf.ret, msf.retx, msf.shrout, msf.altprc, "
+            "msenames.exchcd, msenames.siccd, "
+            "msedelist.dlret, msedelist.dlstcd "
+        "FROM crsp.msf AS msf "
+        "LEFT JOIN crsp.msenames as msenames "
+        "ON msf.permno = msenames.permno AND "
+        "msenames.namedt <= msf.date AND "
+        "msf.date <= msenames.nameendt "
+        "LEFT JOIN crsp.msedelist as msedelist "
+        "ON msf.permno = msedelist.permno AND "
+        "date_trunc('month', msf.date)::date = "
+        "date_trunc('month', msedelist.dlstdt)::date "
+        f"WHERE msf.date BETWEEN '{start_date}' AND '{end_date}' "
+        "AND msenames.shrcd IN (10, 11)"
+    )
+
+    crsp_monthly = (pd.read_sql_query(
+        sql=crsp_monthly_query,
+        con=wrds,
+        dtype={"permno": int, "exchcd": int, "siccd": int},
+        parse_dates={"date", "month"})
+    .assign(shrout=lambda x: x["shrout"]*1000)
+    )
+    crsp_monthly = (crsp_monthly
+    .assign(mktcap=lambda x: abs(x["shrout"]*x["altprc"]/1000000))
+    .assign(mktcap=lambda x: x["mktcap"].replace(0, np.nan))
+    )
+
+    mktcap_lag = (crsp_monthly
+    .assign(
+        month=lambda x: x["month"]+pd.DateOffset(months=1),
+        mktcap_lag=lambda x: x["mktcap"]
+    )
+    .get(["permno", "month", "mktcap_lag"])
+    )
+
+    crsp_monthly = (crsp_monthly
+    .merge(mktcap_lag, how="left", on=["permno", "month"])
+    )
+
+    def assign_exchange(exchcd):
+        if exchcd in [1, 31]:
+            return "NYSE"
+        elif exchcd in [2, 32]:
+            return "AMEX"
+        elif exchcd in [3, 33]:
+            return "NASDAQ"
+        else:
+            return "Other"
+
+    crsp_monthly["exchange"] = (crsp_monthly["exchcd"]
+        .apply(assign_exchange)
+    )
     
-}
+    crsp_monthly = crsp_monthly[crsp_monthly['exchange'].isin(['NYSE', 'NASDAQ', 'AMEX'])]
+    
+    conditions_delisting = [
+        crsp_monthly["dlstcd"].isna(), 
+        (~crsp_monthly["dlstcd"].isna()) & (~crsp_monthly["dlret"].isna()),
+        crsp_monthly["dlstcd"].isin([500, 520, 580, 584]) | 
+            ((crsp_monthly["dlstcd"] >= 551) & (crsp_monthly["dlstcd"] <= 574)),
+        crsp_monthly["dlstcd"] == 100
+    ]
 
+    choices_delisting = [
+        crsp_monthly["ret"],
+        crsp_monthly["dlret"],
+        -0.30,
+        crsp_monthly["ret"]
+    ]
 
-def pull_compustat(wrds_username=WRDS_USERNAME):
+    crsp_monthly = (crsp_monthly
+    .assign(
+        ret_adj=np.select(conditions_delisting, choices_delisting, default=-1)
+    )
+    .drop(columns=["dlret", "dlstcd"])
+    )
+
+    return crsp_monthly
+    
+
+def pull_compustat():
     """
-    See description_compustat for a description of the variables.
+    Pulls financial data from the Compustat database for a specified time period.
+
+    Parameters:
+    - wrds_username (str): The username for accessing the WRDS database. Defaults to WRDS_USERNAME.
+
+    Returns:
+    - compustat (DataFrame): A DataFrame containing the financial data from the Compustat database.
+
     """
-    sql_query = """
-        SELECT 
-            gvkey, datadate, at, sale, cogs, xsga, xint, pstkl, txditc,
-            pstkrv, seq, pstk, ni, sich, ebit, dp
-        FROM 
-            comp.funda
-        WHERE 
-            indfmt='INDL' AND -- industrial companies
-            datafmt='STD' AND -- only standardized records
-            popsrc='D' AND -- only from primary sources
-            consol='C' AND -- consolidated financial statements
-            datadate >= '01/01/1951'
-        """
-    with wrds.Connection(wrds_username=wrds_username) as db:
-        comp = db.raw_sql(sql_query, date_cols=["datadate"])
-    db = wrds.Connection(wrds_username=wrds_username)
-    comp = db.raw_sql(sql_query, date_cols=["datadate"])
-    db.close()
+    compustat_query = (
+    "SELECT gvkey, datadate, seq, ceq, at, lt, txditc, txdb, itcb,  pstkrv, "
+            "pstkl, pstk, capx, oancf, sale, cogs, xint, xsga, sich, ni, ebit, dp "
+        "FROM comp.funda "
+        "WHERE indfmt = 'INDL' "
+            "AND datafmt = 'STD' "
+            "AND consol = 'C' "
+            f"AND datadate BETWEEN '{start_date}' AND '{end_date}'"
+    )
 
-    comp["year"] = comp["datadate"].dt.year
-    return comp
+    compustat = pd.read_sql_query(
+    sql=compustat_query,
+    con=wrds,
+    dtype={"gvkey": str},
+    parse_dates={"datadate"}
+    )
+    compustat = (compustat
+    .assign(
+        be=lambda x: 
+        (x["seq"].combine_first(x["ceq"]+x["pstk"])
+        .combine_first(x["at"]-x["lt"])+
+        x["txditc"].combine_first(x["txdb"]+x["itcb"]).fillna(0)-
+        x["pstkrv"].combine_first(x["pstkl"])
+        .combine_first(x["pstk"]).fillna(0))
+    )
+    .assign(
+        be=lambda x: x["be"].apply(lambda y: np.nan if y <= 0 else y)
+    )
+    .assign(
+        op=lambda x: 
+        ((x["sale"]-x["cogs"].fillna(0)- 
+            x["xsga"].fillna(0)-x["xint"].fillna(0))/x["be"])
+    )
+    )
+    compustat = (compustat
+    .assign(year=lambda x: pd.DatetimeIndex(x["datadate"]).year)
+    .sort_values("datadate")
+    .groupby(["gvkey", "year"])
+    .tail(1)
+    .reset_index()
+    )
+    compustat_lag = (compustat
+    .get(["gvkey", "year", "at"])
+    .assign(year=lambda x: x["year"]+1)
+    .rename(columns={"at": "at_lag"})
+    )
+
+    compustat = (compustat
+    .merge(compustat_lag, how="left", on=["gvkey", "year"])
+    .assign(inv=lambda x: x["at"]/x["at_lag"]-1)
+    .assign(inv=lambda x: np.where(x["at_lag"] <= 0, np.nan, x["inv"]))
+    )
+    return compustat
 
 
-description_crsp = {
-    "permno": "Permanent Number - A unique identifier assigned by CRSP to each security.",
-    "permco": "Permanent Company - A unique company identifier assigned by CRSP that remains constant over time for a given company.",
-    "mthcaldt": "Calendar Date - The date for the monthly data observation.",
-    "issuertype": "Issuer Type - Classification of the issuer, such as corporate or government.",
-    "securitytype": "Security Type - General classification of the security, e.g., stock or bond.",
-    "securitysubtype": "Security Subtype - More specific classification of the security within its type.",
-    "sharetype": "Share Type - Classification of the equity share type, e.g., common stock, preferred stock.",
-    "usincflg": "U.S. Incorporation Flag - Indicator of whether the company is incorporated in the U.S.",
-    "primaryexch": "Primary Exchange - The primary stock exchange where the security is listed.",
-    "conditionaltype": "Conditional Type - Indicator of any conditional issues related to the security.",
-    "tradingstatusflg": "Trading Status Flag - Indicator of the trading status of the security, e.g., active, suspended.",
-    "mthret": "Monthly Return - The total return of the security for the month, including dividends.",
-    "mthretx": "Monthly Return Excluding Dividends - The return of the security for the month, excluding dividends.",
-    "shrout": "Shares Outstanding - The number of outstanding shares of the security.",
-    "mthprc": "Monthly Price - The price of the security at the end of the month.",
-}
-
-
-def pull_CRSP_stock_ciz(wrds_username=WRDS_USERNAME):
-    """Pull necessary CRSP monthly stock data to
-    compute factors. Use the new CIZ format.
+def pull_CRSP_Comp_Link_Table(crsp_monthly):
     """
-    sql_query = """
-        SELECT 
-            a.permno, a.permco, a.mthcaldt, 
-            a.issuertype, a.securitytype, a.securitysubtype, a.sharetype, 
-            a.usincflg, a.primaryexch, a.conditionaltype, a.tradingstatusflg,
-            a.mthret, a.mthretx, a.shrout, a.mthprc,
-            b.siccd
-        FROM 
-            crsp.msf_v2 AS a
-        JOIN crsp.msenames AS b ON a.permno = b.permno 
-        AND b.namedt <= a.mthcaldt AND a.mthcaldt <= b.nameendt
-        WHERE 
-            a.mthcaldt BETWEEN '01/01/1951' AND '02/28/2024'
+    Pulls the CRSP Compustat Link Table from the WRDS database and merges it with the CRSP monthly data.
+
+    Parameters:
+    - wrds_username (str): The username for accessing the WRDS database.
+    - crsp_monthly (pd.DataFrame): The CRSP monthly data.
+
+    Returns:
+    - pd.DataFrame: The merged data containing the CRSP Compustat Link Table.
+
     """
-    db = wrds.Connection(wrds_username=wrds_username)
-    crsp_m = db.raw_sql(sql_query, date_cols=["mthcaldt"])
-    db.close()
 
-    # change variable format to int
-    crsp_m[['permco','permno']]=crsp_m[['permco','permno']].astype(int)
+    ccmxpf_linktable_query = (
+    "SELECT lpermno AS permno, gvkey, linkdt, "
+            "COALESCE(linkenddt, CURRENT_DATE) AS linkenddt "
+        "FROM crsp.ccmxpf_linktable "
+        "WHERE linktype IN ('LU', 'LC') "
+            "AND linkprim IN ('P', 'C') "
+            "AND usedflag = 1"
+    )
 
-    # Line up date to be end of month
-    crsp_m['jdate']=crsp_m['mthcaldt']+MonthEnd(0)
+    ccmxpf_linktable = pd.read_sql_query(
+    sql=ccmxpf_linktable_query,
+    con=wrds,
+    dtype={"permno": int, "gvkey": str},
+    parse_dates={"linkdt", "linkenddt"}
+    )
+    ccm_links = (crsp_monthly
+    .merge(ccmxpf_linktable, how="inner", on="permno")
+    .query("~gvkey.isnull() & (date >= linkdt) & (date <= linkenddt)")
+    .get(["permno", "gvkey", "date"])
+    )
 
-    return crsp_m
+    crsp_monthly = (crsp_monthly
+    .merge(ccm_links, how="left", on=["permno", "date"])
+    )
+    
+    return crsp_monthly
 
-
-description_crsp_comp_link = {
-    "gvkey": "Global Company Key - A unique identifier for companies in the Compustat database.",
-    "permno": "Permanent Number - A unique stock identifier assigned by CRSP to each security.",
-    "linktype": "Link Type - Indicates the type of linkage between CRSP and Compustat records. 'L' types refer to links considered official by CRSP.",
-    "linkprim": "Primary Link Indicator - Specifies whether the link is a primary ('P') or secondary ('C') connection between the databases. Primary links are direct matches between CRSP and Compustat entities, while secondary links may represent subsidiary relationships or other less direct connections.",
-    "linkdt": "Link Date Start - The starting date for which the linkage between CRSP and Compustat data is considered valid.",
-    "linkenddt": "Link Date End - The ending date for which the linkage is considered valid. A blank or high value (e.g., '2099-12-31') indicates that the link is still valid as of the last update.",
-}
-
-
-def pull_CRSP_Comp_Link_Table(wrds_username=WRDS_USERNAME):
-    sql_query = """
-        SELECT 
-            gvkey, lpermno AS permno, linktype, linkprim, linkdt, linkenddt
-        FROM 
-            crsp.ccmxpf_linktable
-        WHERE 
-            substr(linktype,1,1)='L' AND 
-            (linkprim ='C' OR linkprim='P')
-        """
-    db = wrds.Connection(wrds_username=wrds_username)
-    ccm = db.raw_sql(sql_query, date_cols=["linkdt", "linkenddt"])
-    db.close()
-    return ccm
 
 
 def load_compustat(data_dir=DATA_DIR):
@@ -175,8 +251,8 @@ def load_compustat(data_dir=DATA_DIR):
     return comp
 
 
-def load_CRSP_stock_ciz(data_dir=DATA_DIR):
-    path = Path(data_dir) / "pulled" / "CRSP_stock_ciz.parquet"
+def load_CRSP_stock(data_dir=DATA_DIR):
+    path = Path(data_dir) / "pulled" / "CRSP_stock.parquet"
     crsp = pd.read_parquet(path)
     return crsp
 
@@ -188,17 +264,17 @@ def load_CRSP_Comp_Link_Table(data_dir=DATA_DIR):
 
 
 def _demo():
-    comp = load_compustat(data_dir=DATA_DIR)
-    crsp = load_CRSP_stock_ciz(data_dir=DATA_DIR)
-    ccm = load_CRSP_Comp_Link_Table(data_dir=DATA_DIR)
+    comp = load_compustat()
+    crsp = load_CRSP_stock()
+    ccm = load_CRSP_Comp_Link_Table(crsp_monthly=crsp)
 
 
 if __name__ == "__main__":
-    comp = pull_compustat(wrds_username=WRDS_USERNAME)
+    comp = pull_compustat()
     comp.to_parquet(DATA_DIR / "pulled" / "Compustat.parquet")
 
-    crsp = pull_CRSP_stock_ciz(wrds_username=WRDS_USERNAME)
-    crsp.to_parquet(DATA_DIR / "pulled" / "CRSP_stock_ciz.parquet")
+    crsp = pull_CRSP_stock()
+    crsp.to_parquet(DATA_DIR / "pulled" / "CRSP_stock.parquet")
 
-    ccm = pull_CRSP_Comp_Link_Table(wrds_username=WRDS_USERNAME)
+    ccm = pull_CRSP_Comp_Link_Table(crsp_monthly=crsp)
     ccm.to_parquet(DATA_DIR / "pulled" / "CRSP_Comp_Link_Table.parquet")
