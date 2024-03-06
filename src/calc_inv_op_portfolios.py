@@ -9,8 +9,8 @@ DATA_DIR = Path(config.DATA_DIR)
 
 # from load_CRSP_Compustat import *
 # from load_CRSP_stock import *
-from load_alt_CRSP_Compustat import *
-from load_alt_CRSP_stock import *
+from load_CRSP_Compustat import *
+from load_CRSP_stock import *
 
 
 # Blue print
@@ -27,65 +27,65 @@ from load_alt_CRSP_stock import *
 
 
 
-def calc_book_equity_and_years_in_compustat(comp):
-    """Calculate book equity and number of years in Compustat.
+# def calc_book_equity_and_years_in_compustat(comp):
+#     """Calculate book equity and number of years in Compustat.
 
-    Use load_CRSP_Compustat.description_crsp for help
-    """
-    comp['ps'] = comp['pstkrv'].fillna(comp['pstkl']).fillna(comp['pstk']).fillna(0)
+#     Use load_CRSP_Compustat.description_crsp for help
+#     """
+#     comp['ps'] = comp['pstkrv'].fillna(comp['pstkl']).fillna(comp['pstk']).fillna(0)
     
-    # Replace null in 'txditc' with 0
-    comp['txditc'] = comp['txditc'].fillna(0)
+#     # Replace null in 'txditc' with 0
+#     comp['txditc'] = comp['txditc'].fillna(0)
     
-    # Calculate book equity ('be')
-    comp['be'] = comp['seq'] + comp['txditc'] - comp['ps']
+#     # Calculate book equity ('be')
+#     comp['be'] = comp['seq'] + comp['txditc'] - comp['ps']
     
-    # Ensure book equity is positive; otherwise, set as NaN
-    comp['be'] = comp['be'].where(comp['be'] > 0)
+#     # Ensure book equity is positive; otherwise, set as NaN
+#     comp['be'] = comp['be'].where(comp['be'] > 0)
     
-    # Sort by 'gvkey' and 'datadate' and calculate the number of years in Compustat
-    comp = comp.sort_values(by=["gvkey", "datadate"])
-    comp['count'] = comp.groupby('gvkey').cumcount() 
+#     # Sort by 'gvkey' and 'datadate' and calculate the number of years in Compustat
+#     comp = comp.sort_values(by=["gvkey", "datadate"])
+#     comp['count'] = comp.groupby('gvkey').cumcount() 
 
-    return comp
+#     return comp
 
-def subset_CRSP_to_common_stock_and_exchanges(crsp):
-    """Subset to common stock universe and
-    stocks traded on NYSE, AMEX and NASDAQ.
+# def subset_CRSP_to_common_stock_and_exchanges(crsp):
+#     """Subset to common stock universe and
+#     stocks traded on NYSE, AMEX and NASDAQ.
 
-    NOTE:
-        With the new CIZ format, it is not necessary to apply delisting
-        returns, as they are already applied.
-    """
-    crsp_filtered = crsp[
-        (crsp['sharetype']=='NS')  &
-        (crsp['securitytype'] == 'EQTY') &  # Confirm this correctly filters equity securities
-        (crsp['securitysubtype'] == 'COM') &  # Ensure 'COM' accurately captures common stocks
-        (crsp['usincflg'] == 'Y') &  # U.S.-incorporated
-        # Assuming more precise issuer types or additional conditions were found
-        (crsp['issuertype'].isin(['ACOR', 'CORP'])) &  # Confirm these are the correct issuer types
-        (crsp['primaryexch'].isin(['N', 'A', 'Q'])) &  
-        (crsp['tradingstatusflg'] == 'A')&
-        (crsp['conditionaltype'] == 'RW') 
-        ]
+#     NOTE:
+#         With the new CIZ format, it is not necessary to apply delisting
+#         returns, as they are already applied.
+#     """
+#     crsp_filtered = crsp[
+#         (crsp['sharetype']=='NS')  &
+#         (crsp['securitytype'] == 'EQTY') &  # Confirm this correctly filters equity securities
+#         (crsp['securitysubtype'] == 'COM') &  # Ensure 'COM' accurately captures common stocks
+#         (crsp['usincflg'] == 'Y') &  # U.S.-incorporated
+#         # Assuming more precise issuer types or additional conditions were found
+#         (crsp['issuertype'].isin(['ACOR', 'CORP'])) &  # Confirm these are the correct issuer types
+#         (crsp['primaryexch'].isin(['N', 'A', 'Q'])) &  
+#         (crsp['tradingstatusflg'] == 'A')&
+#         (crsp['conditionaltype'] == 'RW') 
+#         ]
 
-    return crsp_filtered
+#     return crsp_filtered
 
-def calculate_market_equity(crsp):
-    """
-    'There were cases when the same firm (permco) had two or more securities
-    (permno) on the same date. For the purpose of ME for the firm, we
-    aggregated all ME for a given permco, date. This aggregated ME was assigned
-    to the CRSP permno that has the largest ME.
-    """
-    crsp['me']=crsp['mthprc']*crsp['shrout']
-    agg_me = crsp.groupby(['jdate', 'permco'])['me'].sum().reset_index()
-    max_me = crsp.groupby(['jdate', 'permco'])['me'].max().reset_index()
-    crsp = crsp.merge(max_me, how='inner', on=['jdate','permco', 'me'])
-    crsp = crsp.drop('me', axis=1)
-    crsp = crsp.merge(agg_me, how='inner', on=['jdate','permco'])
-    crsp = crsp.sort_values(by=['permno','jdate']).drop_duplicates()
-    return crsp
+# def calculate_market_equity(crsp):
+#     """
+#     'There were cases when the same firm (permco) had two or more securities
+#     (permno) on the same date. For the purpose of ME for the firm, we
+#     aggregated all ME for a given permco, date. This aggregated ME was assigned
+#     to the CRSP permno that has the largest ME.
+#     """
+#     crsp['me']=crsp['mthprc']*crsp['shrout']
+#     agg_me = crsp.groupby(['jdate', 'permco'])['me'].sum().reset_index()
+#     max_me = crsp.groupby(['jdate', 'permco'])['me'].max().reset_index()
+#     crsp = crsp.merge(max_me, how='inner', on=['jdate','permco', 'me'])
+#     crsp = crsp.drop('me', axis=1)
+#     crsp = crsp.merge(agg_me, how='inner', on=['jdate','permco'])
+#     crsp = crsp.sort_values(by=['permno','jdate']).drop_duplicates()
+#     return crsp
 
 
 def use_dec_market_equity(crsp2):
@@ -96,19 +96,19 @@ def use_dec_market_equity(crsp2):
     the portfolio.'
 
     """
-    crsp2["year"] = crsp2["jdate"].dt.year
-    crsp2["month"] = crsp2["jdate"].dt.month
-    decme = crsp2[crsp2["month"] == 12]
-    decme = decme[["permno", "mthcaldt", "jdate", "me", "year"]].rename(
-        columns={"me": "dec_me"}
+    crsp2["year"] = crsp2["date"].dt.year
+    crsp2["month_num"] = crsp2["date"].dt.month
+    decme = crsp2[crsp2["month_num"] == 12]
+    decme = decme[["permno", "month", "date", "mktcap", "year"]].rename(
+        columns={"mktcap": "dec_me"}
     )
 
     ### July to June dates
-    crsp2["ffdate"] = crsp2["jdate"] + MonthEnd(-6)
+    crsp2["ffdate"] = crsp2["date"] + MonthEnd(-6)
     crsp2["ffyear"] = crsp2["ffdate"].dt.year
     crsp2["ffmonth"] = crsp2["ffdate"].dt.month
-    crsp2["1+retx"] = 1 + crsp2["mthretx"]
-    crsp2 = crsp2.sort_values(by=["permno", "mthcaldt"])
+    crsp2["1+retx"] = 1 + crsp2["retx"]
+    crsp2 = crsp2.sort_values(by=["permno", "month"])
 
     # cumret by stock
     crsp2["cumretx"] = crsp2.groupby(["permno", "ffyear"])["1+retx"].cumprod()
@@ -117,55 +117,55 @@ def use_dec_market_equity(crsp2):
     crsp2["L_cumretx"] = crsp2.groupby(["permno"])["cumretx"].shift(1)
 
     # lag market cap
-    crsp2["L_me"] = crsp2.groupby(["permno"])["me"].shift(1)
+    # crsp2["L_me"] = crsp2.groupby(["permno"])["me"].shift(1)
 
     # if first permno then use me/(1+retx) to replace the missing value
     crsp2["count"] = crsp2.groupby(["permno"]).cumcount()
-    crsp2["L_me"] = np.where(
-        crsp2["count"] == 0, crsp2["me"] / crsp2["1+retx"], crsp2["L_me"]
-    )
+    # crsp2["mktcap_lag"] = np.where(
+    #     crsp2["count"] == 0, crsp2["mktcap"] / crsp2["1+retx"], crsp2["mktcap_lag"]
+    # )
 
     # baseline me
-    mebase = crsp2[crsp2["ffmonth"] == 1][["permno", "ffyear", "L_me"]].rename(
-        columns={"L_me": "mebase"}
+    mebase = crsp2[crsp2["ffmonth"] == 1][["permno", "ffyear", "mktcap_lag"]].rename(
+        columns={"mktcap_lag": "mebase"}
     )
 
     # merge result back together
     crsp3 = pd.merge(crsp2, mebase, how="left", on=["permno", "ffyear"])
     crsp3["wt"] = np.where(
-        crsp3["ffmonth"] == 1, crsp3["L_me"], crsp3["mebase"] * crsp3["L_cumretx"]
+        crsp3["ffmonth"] == 1, crsp3["mktcap_lag"], crsp3["mebase"] * crsp3["L_cumretx"]
     )
 
     decme["year"] = decme["year"] + 1
     decme = decme[["permno", "year", "dec_me"]]
 
     # Info as of June
-    crsp3_jun = crsp3[crsp3["month"] == 6]
+    crsp3_jun = crsp3[crsp3["month_num"] == 6]
 
     crsp_jun = pd.merge(crsp3_jun, decme, how="inner", on=["permno", "year"])
     crsp_jun = crsp_jun[
         [
             "permno",
-            "mthcaldt",
-            "jdate",
-            "sharetype",
-            "securitytype",
-            "securitysubtype",
-            "usincflg",
-            "issuertype",
-            "primaryexch",
-            "conditionaltype",
-            "tradingstatusflg",
-            "mthret",
-            "me",
+            "month",
+            "date",
+            # "sharetype",
+            # "securitytype",
+            # "securitysubtype",
+            # "usincflg",
+            # "issuertype",
+            "exchange",
+            # "conditionaltype",
+            # "tradingstatusflg",
+            "ret",
+            "mktcap",
             "wt",
             "cumretx",
             "mebase",
-            "L_me",
+            "mktcap_lag",
             "dec_me",
         ]
     ]
-    crsp_jun = crsp_jun.sort_values(by=["permno", "jdate"]).drop_duplicates()
+    crsp_jun = crsp_jun.sort_values(by=["permno", "date"]).drop_duplicates()
     return crsp3, crsp_jun
 
 
@@ -174,13 +174,13 @@ def op_bucket(row):
     """
     if row['opmin'] <= row["year_op"] <= row["op20"]:
         value = "OP1"
-    elif row["op"] <= row["op40"]:
+    elif row["year_op"] <= row["op40"]:
         value = "OP2"
-    elif row["op"] <= row["op60"]:
+    elif row["year_op"] <= row["op60"]:
         value = "OP3"
-    elif row["op"] <= row["op80"]:
+    elif row["year_op"] <= row["op80"]:
         value = "OP4"
-    elif row["op"] > row["op80"]:
+    elif row["year_op"] > row["op80"]:
         value = "OP5"
     else:
         value = ""
@@ -191,34 +191,40 @@ def inv_bucket(row):
     """
     if row['invmin'] <= row["year_inv"] <= row["inv20"]:
         value = "INV1"
-    elif row["inv"] <= row["inv40"]:
+    elif row["year_inv"] <= row["inv40"]:
         value = "INV2"
-    elif row["inv"] <= row["inv60"]:
+    elif row["year_inv"] <= row["inv60"]:
         value = "INV3"
-    elif row["inv"] <= row["inv80"]:
+    elif row["year_inv"] <= row["inv80"]:
         value = "INV4"
-    elif row["inv"] > row["inv80"]:
+    elif row["year_inv"] > row["inv80"]:
         value = "INV5"
     else:
         value = ""
     return value
 
 def merge_CRSP_and_Compustat(crsp_jun, comp, ccm):
-    ccm["linkenddt"] = ccm["linkenddt"].fillna(pd.to_datetime("today"))
+    # ccm["date"] = ccm["date"].fillna(pd.to_datetime("today"))
+    #comp.rename(columns={"datadate": "date"}, inplace=True)
+    comp['month_num'] = comp['datadate'].dt.month
+    comp['year'] = comp['datadate'].dt.year
+    ccm['month_num'] = ccm['date'].dt.month
+    ccm['year'] = ccm['date'].dt.year
 
     ccm1 = pd.merge(
-        comp, ccm, how="left", on=["gvkey"]
+        comp, ccm, how="left", on=["gvkey", 'year', 'month_num']
     )
-    ccm1["yearend"] = ccm1["datadate"] + YearEnd(0)
-    ccm1["jdate"] = ccm1["yearend"] + MonthEnd(6)
-    # set link date bounds
-    ccm2 = ccm1[
-        (ccm1["jdate"] >= ccm1["linkdt"]) & (ccm1["jdate"] <= ccm1["linkenddt"])
-    ]
+    # ccm1["yearend"] = ccm1["datadate"] + YearEnd(0)
+    # ccm1["date"] = ccm1["yearend"] + MonthEnd(6)
+    # # set link date bounds
+    # ccm2 = ccm1[
+    #     (ccm1["date"] >= ccm1["date"]) & (ccm1["date"] <= ccm1["date"])
+    # ]
 
     # link comp and crsp
-    ccm_jun = pd.merge(crsp_jun, ccm2, how="inner", on=["permno", "jdate"])
-    ccm_jun["beme"] = ccm_jun["be"] * 1000 / ccm_jun["dec_me"]
+    # ccm_jun = pd.merge(crsp_jun, ccm1, how="inner", on=["permno", "date"])
+    ccm_jun = ccm1[ccm1['date'].dt.month == 6]
+    #ccm_jun["beme"] = ccm_jun["be"] * 1000 / ccm_jun["dec_me"]
     return ccm_jun
 
 def assign_op_and_inv_portfolios(ccm_jun, crsp3):
@@ -235,80 +241,81 @@ def assign_op_and_inv_portfolios(ccm_jun, crsp3):
 
     # select NYSE stocks for bucket breakdown, adjusted for new data availability criteria
     nyse = ccm_jun_filtered[
-        (ccm_jun_filtered["primaryexch"] == "N") &
-        (ccm_jun_filtered["beme"] > 0) &
-        (ccm_jun_filtered["me"] > 0) &
-        (ccm_jun_filtered["count"] >= 2)  # ensuring at least 2 years in Compustat, adjusted as per requirement
+        (ccm_jun_filtered["exchange"] == "NASDAQ") &
+        (ccm_jun_filtered["be"] > 0) &
+        (ccm_jun_filtered["mktcap"] > 0) #&
+        #(ccm_jun_filtered["count"] >= 2)  # ensuring at least 2 years in Compustat, adjusted as per requirement
     ]
     
 
     # op breakdown
     nyse_op = (
-        nyse.groupby(["jdate"])["year_op"].describe(percentiles=[0, 0.2, 0.4, 0.6, 0.8]).reset_index()
+        nyse.groupby(["date"])["year_op"].describe(percentiles=[0, 0.2, 0.4, 0.6, 0.8]).reset_index()
     )
-    nyse_op = nyse_op[["jdate", "0%", "20%", "40%", "60%", "80%"]].rename(
+    nyse_op = nyse_op[["date", "0%", "20%", "40%", "60%", "80%"]].rename(
         columns={"0%": 'opmin', "20%": "op20", "40%": "op40", "60%": "op60", "80%": "op80"}
     )
 
     # inv breakdown
     nyse_inv = (
-        nyse.groupby(["jdate"])["year_inv"].describe(percentiles=[0, 0.2, 0.4, 0.6, 0.8]).reset_index()
+        nyse.groupby(["date"])["year_inv"].describe(percentiles=[0, 0.2, 0.4, 0.6, 0.8]).reset_index()
     )
-    nyse_inv = nyse_inv[["jdate", "0%", "20%", "40%", "60%", "80%"]].rename(
+    nyse_inv = nyse_inv[["date", "0%", "20%", "40%", "60%", "80%"]].rename(
         columns={"0%": 'invmin', "20%": "inv20", "40%": "inv40", "60%": "inv60", "80%": "inv80"}
     )
 
-    nyse_breaks = pd.merge(nyse_op, nyse_inv, how="inner", on=["jdate"])
+    nyse_breaks = pd.merge(nyse_op, nyse_inv, how="inner", on=["date"])
 
     # join back size and beme breakdown
-    ccm1_jun = pd.merge(ccm_jun, nyse_breaks, how="left", on=["jdate"])
+    ccm1_jun = pd.merge(ccm_jun, nyse_breaks, how="left", on=["date"])
 
     # assign op portfolio
     ccm1_jun["opport"] = np.where(
-        (ccm1_jun["beme"] > 0) & (ccm1_jun["me"] > 0) & (ccm1_jun["count"] >= 1),
+        (ccm1_jun["be"] > 0) & (ccm1_jun["mktcap"] > 0), # & (ccm1_jun["count"] >= 1),
         ccm1_jun.apply(op_bucket, axis=1),
         "",
     )
 
     # assign inv portfolio
     ccm1_jun["invport"] = np.where(
-        (ccm1_jun["beme"] > 0) & (ccm1_jun["me"] > 0) & (ccm1_jun["count"] >= 1),
+        (ccm1_jun["be"] > 0) & (ccm1_jun["mktcap"] > 0), #& (ccm1_jun["count"] >= 1),
         ccm1_jun.apply(inv_bucket, axis=1),
         "",
     )
 
     # create positivebmeme and nonmissport variable
     ccm1_jun["posbm"] = np.where(
-        (ccm1_jun["beme"] > 0) & (ccm1_jun["me"] > 0) & (ccm1_jun["count"] >= 1), 1, 0
+        (ccm1_jun["be"] > 0) & (ccm1_jun["mktcap"] > 0), 1, 0 #& (ccm1_jun["count"] >= 1), 1, 0
     )
     ccm1_jun["nonmissport"] = np.where((ccm1_jun["invport"] != ""), 1, 0)
         
     # store portfolio assignment as of June
 
     june = ccm1_jun[
-        ["permno", "mthcaldt", "jdate", "opport", "invport", "posbm", "nonmissport"]
+        ["permno", "month", "date", "opport", "invport", "posbm", "nonmissport"]
     ].copy()
-    june["ffyear"] = june["jdate"].dt.year
+    june["ffyear"] = june["date"].dt.year
 
     # merge back with monthly records
     crsp3 = crsp3[
         [
-            "mthcaldt",
+            "month",
+            'year',
             "permno",
-            "sharetype",
-            "securitytype",
-            "securitysubtype",
-            "usincflg",
-            "issuertype",
-            "primaryexch",
-            "conditionaltype",
-            "tradingstatusflg",
-            "mthret",
-            "me",
+            # "sharetype",
+            # "securitytype",
+            # "usincflg",
+            # "issuertype",
+            "exchange",
+            # "conditionaltype",
+            # "tradingstatusflg",
+            "ret",
+            'retx',
+            "mktcap",
             "wt",
             "cumretx",
             "ffyear",
-            "jdate",
+            "date",
         ]
     ]
     ccm3 = pd.merge(
@@ -323,16 +330,16 @@ def assign_op_and_inv_portfolios(ccm_jun, crsp3):
     return ccm4
 
 
-def calculate_op_inv(comp):
-    # Adjust OP calculation
-    comp['op'] = (comp['sale'] - comp['cogs'] - comp['xsga'] - comp['xint']) / comp['be'].shift(1)
-    comp['op'] = comp['op'].fillna(0)  # Fill NaN values with 0
+# def calculate_op_inv(comp):
+#     # Adjust OP calculation
+#     comp['op'] = (comp['sale'] - comp['cogs'] - comp['xsga'] - comp['xint']) / comp['be'].shift(1)
+#     comp['op'] = comp['op'].fillna(0)  # Fill NaN values with 0
 
-    # Adjust INV calculation
-    comp['inv'] = (comp['at'].shift(1) - comp['at'].shift(2)) / comp['at'].shift(2)
-    comp['inv'] = comp['inv'].fillna(0)  # Fill NaN values with 0
+#     # Adjust INV calculation
+#     comp['inv'] = (comp['at'].shift(1) - comp['at'].shift(2)) / comp['at'].shift(2)
+#     comp['inv'] = comp['inv'].fillna(0)  # Fill NaN values with 0
 
-    return comp
+#     return comp
 
 
 def wavg(group, avg_name, weight_name):
@@ -352,8 +359,8 @@ def create_op_inv_portfolios(ccm4):
     # THIS CODE IS COMPLETED FOR YOU
     # monthly value-weigthed return
     vwret_m = (
-        ccm4.groupby(["jdate", "opport", "invport"])
-        .apply(wavg, "mthret", "wt")
+        ccm4.groupby(["date", "opport", "invport"])
+        .apply(wavg, "retx", "wt")
         .to_frame()
         .reset_index()
         .rename(columns={0: "vwret_m"})
@@ -361,10 +368,10 @@ def create_op_inv_portfolios(ccm4):
     vwret_m["OIport"] = vwret_m["opport"] + vwret_m["invport"]
 
     # monthly equal-weigthed return
-    eq_wavg = (lambda x: np.mean(x['mthret']))
+    eq_wavg = (lambda x: np.mean(x['retx']))
 
     ewret_m = (
-        ccm4.groupby(["jdate", "opport", "invport"])
+        ccm4.groupby(["date", "opport", "invport"])
         .apply(eq_wavg)
         .to_frame()
         .reset_index()
@@ -375,7 +382,7 @@ def create_op_inv_portfolios(ccm4):
     # yearly value-weigthed return
     vwret_y = (
         ccm4.groupby(["year", "opport", "invport"])
-        .apply(wavg, "mthret", "wt")
+        .apply(wavg, "retx", "wt")
         .to_frame()
         .reset_index()
         .rename(columns={0: "vwret_y"})
@@ -396,18 +403,19 @@ def create_op_inv_portfolios(ccm4):
 
     # firm count
     num_firms = (
-        ccm4.groupby(["jdate", "opport", "invport"])["mthret"]
+        ccm4.groupby(["date", "opport", "invport"])["retx"]
         .count()
         .reset_index()
-        .rename(columns={"mthret": "n_firms"})
+        .rename(columns={"retx": "n_firms"})
     )
     num_firms["OIport"] = num_firms["opport"] + num_firms["invport"]
+    num_firms = num_firms.pivot(index="date", columns="OIport", values="n_firms")
 
     ## market cap
-    avg_market_cap = (lambda x: np.mean(x['me']))
+    avg_market_cap = (lambda x: np.mean(x['mktcap']))
 
     cap = (
-        ccm4.groupby(["jdate", "opport", "invport"])
+        ccm4.groupby(["date", "opport", "invport"])
         .apply(avg_market_cap)
         .to_frame()
         .reset_index()
@@ -436,14 +444,14 @@ def create_op_inv_factors(data_dir=DATA_DIR):
     # Prep CRSP and Compustat data according to the Fama-French 1993 
     # methodology described in the document linked in the 
     # module's docstring (at the top of this file).
-    
-    comp = calc_book_equity_and_years_in_compustat(comp)
-    crsp = subset_CRSP_to_common_stock_and_exchanges(crsp)
+
+    # comp = calc_book_equity_and_years_in_compustat(comp)
+    # crsp = subset_CRSP_to_common_stock_and_exchanges(crsp)
 
     # crsp['mthret']=crsp['mthret'].fillna(0)
     # crsp['mthretx']=crsp['mthretx'].fillna(0)
-    crsp2 = calculate_market_equity(crsp)
-    crsp3, crsp_jun = use_dec_market_equity(crsp2)
+    # crsp2 = calculate_market_equity(crsp)
+    crsp3, crsp_jun = use_dec_market_equity(crsp)
     ccm_jun = merge_CRSP_and_Compustat(crsp_jun, comp, ccm)
     ccm_jun2 = calculate_op_inv(ccm_jun)
     
