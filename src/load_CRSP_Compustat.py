@@ -80,20 +80,20 @@ def pull_CRSP_stock():
     .assign(shrout=lambda x: x["shrout"]*1000)
     )
     crsp_monthly = (crsp_monthly
-    .assign(mktcap=lambda x: abs(x["shrout"]*x["altprc"]/1000000))
-    .assign(mktcap=lambda x: x["mktcap"].replace(0, np.nan))
+    .assign(me=lambda x: abs(x["shrout"]*x["altprc"]/1000000))
+    .assign(me=lambda x: x["me"].replace(0, np.nan))
     )
 
-    mktcap_lag = (crsp_monthly
+    me_lag = (crsp_monthly
     .assign(
         month=lambda x: x["month"]+pd.DateOffset(months=1),
-        mktcap_lag=lambda x: x["mktcap"]
+        me_lag=lambda x: x["me"]
     )
-    .get(["permno", "month", "mktcap_lag"])
+    .get(["permno", "month", "me_lag"])
     )
 
     crsp_monthly = (crsp_monthly
-    .merge(mktcap_lag, how="left", on=["permno", "month"])
+    .merge(me_lag, how="left", on=["permno", "month"])
     )
 
     def assign_exchange(exchcd):
@@ -200,7 +200,12 @@ def pull_compustat():
     .assign(inv=lambda x: x["at"]/x["at_lag"]-1)
     .assign(inv=lambda x: np.where(x["at_lag"] <= 0, np.nan, x["inv"]))
     )
-    return compustat
+    comp = compustat
+    # number of years in Compustat
+    comp = comp.sort_values(by=["gvkey", "datadate"])
+    comp["count"] = comp.groupby(["gvkey"]).cumcount()
+    
+    return comp
 
 
 def pull_CRSP_Comp_Link_Table(crsp_monthly):

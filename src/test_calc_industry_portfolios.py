@@ -25,6 +25,8 @@ def load_data_from_excel(file_path):
     return data
 
 
+
+
 # Load your data from Excel
 '''
 5 Industry Portfolios
@@ -95,3 +97,5 @@ daily49_eq_wt_ret = dfs6['1']
 comp = load_compustat(data_dir=DATA_DIR)
 crsp = load_CRSP_stock(data_dir=DATA_DIR)
 ccm = load_CRSP_Comp_Link_Table(data_dir=DATA_DIR)
+
+
