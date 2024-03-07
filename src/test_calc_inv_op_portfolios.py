@@ -125,3 +125,12 @@ def test_output_shape():
      vwret_m, ewret_m, num_firms = create_op_inv_portfolios(ccm3)
 
      assert num_firms.shape == (768, 25)
+     
+def test_5x5_file_exists():
+        # Assuming DATADIR is an environment variable. Replace with your actual path if needed
+
+        manual_dir = os.path.join(DATA_DIR, 'manual')
+        target_file = os.path.join(manual_dir, '5x5_OP_INV_portfolios.xlsx')
+
+        # Check if the file exists
+        assert(os.path.isfile(target_file), f"{target_file} does not exist")

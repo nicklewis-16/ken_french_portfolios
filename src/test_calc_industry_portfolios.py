@@ -128,3 +128,10 @@ def test_49ind_file_exists():
 
         # Check if the file exists
         assert(os.path.isfile(target_file), f"{target_file} does not exist")
+
+
+def test_output_shape():
+    # columns should be 5 and 49
+    # rows should be 12*64 (Jan 1960 - Dec 2023) = 768
+    assert vwret_49npiv.shape == (768, 49)
+    assert vwret_5npiv.shape == (768, 5)
