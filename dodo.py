@@ -185,6 +185,8 @@ def task_analyze_industries():
             ## src/calc_industry_portfolios.py
             "sec_per_ind_5.png",
             "actual_sec_per_ind_5.png",
+            "summary_stats_5ind.tex",
+            'actual_summary_stats_5ind.tex',
         ]
     ]
 
