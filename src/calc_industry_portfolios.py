@@ -1,10 +1,48 @@
+"""
+This module provides functionality for assigning industry classifications to companies based on SIC codes, 
+creating value-weighted industry portfolios, and visualizing the monthly number of securities by industry.
+
+It utilizes datasets from CRSP (Center for Research in Security Prices) and Compustat to calculate market equity,
+determine industry assignments, and generate industry portfolios that are further analyzed through various 
+visualizations. The module makes extensive use of pandas for data manipulation, plotnine for plotting, and 
+additional utilities from the pathlib, datetime, and custom modules for data handling and configuration.
+
+Features include:
+- Assigning companies to industries based on SIC codes with both broad (5 industries) and detailed (49 industries) classifications.
+- Calculating market equity for companies using CRSP data.
+- Creating value-weighted returns for industry portfolios.
+- Visualizing the monthly count of securities per industry over time.
+- Saving calculated industry portfolio returns and counts to Excel files for further analysis.
+
+The module expects specific data structure in the input CRSP and Compustat datasets and relies on external
+configuration for specifying input and output directories.
+
+Functions:
+- assign_industry5(sic_code): Assigns a broad industry category based on the SIC code.
+- assign_industry49(sic_code): Assigns a detailed industry portfolio based on the SIC code.
+- draw_industry_assignment(securities_per_industry, name, n): Draws a line plot showing the monthly number of securities by industry.
+- wavg(group, avg_name, weight_name): Calculates value-weighted returns.
+- calculate_market_equity(crsp): Calculates the market equity for observations in the CRSP dataset.
+- use_dec_market_equity(crsp2): Utilizes December market equity to calculate market equity at different time points.
+- create_industry_portfolios(ccm4, n): Creates value-weighted industry portfolios and counts firms in each.
+
+This script is intended to be run as the main module, loading data from specified directories, performing 
+calculations, and saving results to Excel files for both 5 and 49 industry classifications.
+
+Dependencies:
+- load_CRSP_Compustat, load_CRSP_stock for loading datasets
+"""
+
+
 import pandas as pd
 import numpy as np
 from pathlib import Path
 import config
-from plotnine import *
-from mizani.formatters import comma_format, percent_format
 from datetime import datetime
+from matplotlib.ticker import FuncFormatter
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+
 OUTPUT_DIR = Path(config.OUTPUT_DIR)
 DATA_DIR = Path(config.DATA_DIR)
 
@@ -134,34 +172,6 @@ def assign_industry49(sic_code):
 
     return 'Other'  # Default category if no ranges match
 
-
-def draw_industry_assignment(securities_per_industry, name, n):
-    """
-    Draw a line plot showing the monthly number of securities by industry.
-
-    Parameters:
-    securities_per_industry (DataFrame): A DataFrame containing the data for securities per industry.
-
-    Returns:
-    None (plots the line plot and saves it to a file in output directory)
-    """
-
-    linetypes = ["-", "--", "-.", ":"]
-    n_industries = securities_per_industry[name].nunique()
-
-    securities_per_industry_figure = (
-        ggplot(securities_per_industry, 
-                aes(x="date", y="ret", color=name, linetype=name)) + 
-        geom_line() + 
-        labs(x="", y="", color="", linetype="",
-            title="Monthly number of securities by industry") +
-        scale_x_datetime(date_breaks="10 years", date_labels="%Y") + 
-        scale_y_continuous(labels=comma_format()) +
-        scale_linetype_manual(
-            values=[linetypes[l % len(linetypes)] for l in range(n_industries)]
-        ) 
-    )
-    securities_per_industry_figure.save(OUTPUT_DIR / f"sec_per_ind_{n}.png", dpi=300)
     
 def wavg(group, avg_name, weight_name):
     """function to calculate value weighted return
@@ -174,6 +184,16 @@ def wavg(group, avg_name, weight_name):
         return np.nan
     
 def calculate_market_equity(crsp):
+    """
+    Calculate the market equity for each observation in the given CRSP dataset.
+
+    Parameters:
+    crsp (DataFrame): The CRSP dataset containing the necessary columns.
+
+    Returns:
+    DataFrame: The updated CRSP dataset with the market equity calculated.
+
+    """
     crsp = crsp.sort_values(by=["date", "permco", "me"])
 
     ### Aggregate Market Cap ###
@@ -199,6 +219,23 @@ def calculate_market_equity(crsp):
 
 def use_dec_market_equity(crsp2):
     """
+    Calculate market equity using December market cap and June market cap.
+
+    Parameters:
+    crsp2 (DataFrame): Input DataFrame containing market cap data.
+
+    Returns:
+    crsp3 (DataFrame): DataFrame with calculated market equity values.
+    crsp_jun (DataFrame): DataFrame with market equity values as of June.
+
+    Notes:
+    - The function calculates market equity using December market cap and June market cap.
+    - The December market cap is used to create the Book-to-Market ratio (BEME).
+    - The June market cap must be positive in order to be included in the portfolio.
+    - The function returns two DataFrames: crsp3 and crsp_jun.
+    - crsp3 contains the calculated market equity values.
+    - crsp_jun contains the market equity values as of June.
+
     Finally, ME at June and December
     were flagged since (1) December ME will be used to create Book-to-Market
     ratio (BEME) and (2) June ME has to be positive in order to be part of
@@ -260,10 +297,10 @@ def use_dec_market_equity(crsp2):
 
 
 def create_industry_portfolios(ccm4,n):
-    """Create value-weighted Fama-French portfolios
+    """Create value-weighted industry portfolios
     and provide count of firms in each portfolio.
     """
-    # value-weigthed return
+    # value-weighted return
     vwret = (
         ccm4.groupby(["date", f"industry{n}"])
         .apply(wavg, "ret", "wt")
@@ -293,22 +330,22 @@ if __name__ == "__main__":
     crsp3['industry49'] = crsp3['siccd'].apply(assign_industry49)
     vwret5, vwret_5n = create_industry_portfolios(crsp3, 5)
     vwret49, vwret_49n = create_industry_portfolios(crsp3, 49)
-    draw_industry_assignment(vwret_5n, 'industry5', 5)
-    draw_industry_assignment(vwret_49n, 'industry49', 49)
-    vwret5 = vwret5.pivot(index="date", columns="industry5", values="vwret") 
-    vwret49 = vwret49.pivot(index="date", columns="industry49", values="vwret")
-    vwret_5n = vwret_5n.pivot(index="date", columns="industry5", values="ret")
-    vwret_49n = vwret_49n.pivot(index="date", columns="industry49", values="ret")
+    
+    vwret5piv = vwret5.pivot(index="date", columns="industry5", values="vwret") 
+    vwret49piv = vwret49.pivot(index="date", columns="industry49", values="vwret")
+    vwret_5npiv = vwret_5n.pivot(index="date", columns="industry5", values="ret")
+    vwret_49npiv = vwret_49n.pivot(index="date", columns="industry49", values="ret")
 
-    filename = OUTPUT_DIR / '5industry_portfolios.xlsx'
+    filename = DATA_DIR / 'manual' / '5industry_portfolios.xlsx'
 
     with pd.ExcelWriter(filename, engine='xlsxwriter') as writer:
-        vwret5.to_excel(writer, sheet_name='VW Avg Mo. Ret', index=True)
-        vwret_5n.to_excel(writer, sheet_name='Num Firms', index=True)
+        vwret5piv.to_excel(writer, sheet_name='VW Avg Mo. Ret', index=True)
+        vwret_5npiv.to_excel(writer, sheet_name='Num Firms', index=True)
         
-    filename = OUTPUT_DIR / '49industry_portfolios.xlsx'
+    filename = DATA_DIR / 'manual' / '49industry_portfolios.xlsx'
 
     with pd.ExcelWriter(filename, engine='xlsxwriter') as writer:
-        vwret49.to_excel(writer, sheet_name='VW Avg Mo. Ret', index=True)
-        vwret_49n.to_excel(writer, sheet_name='Num Firms', index=True)
+        vwret49piv.to_excel(writer, sheet_name='VW Avg Mo. Ret', index=True)
+        vwret_49npiv.to_excel(writer, sheet_name='Num Firms', index=True)
+    
     
