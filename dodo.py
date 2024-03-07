@@ -164,7 +164,6 @@ def task_calc_industries():
 
     return {
         "actions": [
-            "ipython src/config.py",
             "ipython src/calc_industry_portfolios.py",
         ],
         "targets": targets,
@@ -200,6 +199,58 @@ def task_analyze_industries():
         "verbosity": 2, 
     }
 
+
+
+def task_calc_inv_op():
+    """calculates the inv op portfolios
+    """
+    file_dep = [
+        "./src/config.py", 
+        "./src/load_CRSP_stock.py",
+        "./src/load_CRSP_Compustat.py",
+        ]
+    targets = [
+        Path(DATA_DIR) / "manual" / file for file in 
+        [
+            ## src/calc_op_inv_portfolios.py
+            "5x5_OP_INV_portfolios.xlsx",
+        ]
+    ]
+
+    return {
+        "actions": [
+            "ipython src/calc_op_inv_portfolios.py",
+        ],
+        "targets": targets,
+        "file_dep": file_dep,
+        "clean": True,
+        "verbosity": 2, 
+    }
+    
+def task_analyze_op_inv():
+    """calculates the inv_op portfolios
+    """
+    file_dep = [
+        "./src/calc_op_inv_portfolios.py",
+        ]
+    targets = [
+        Path(OUTPUT_DIR) / file for file in 
+        [
+            ## src/analyze_OP_INV_portfolios.py
+            'output/opinv_mixed.png',
+            'output/opinv_same.png'
+        ]
+    ]
+
+    return {
+        "actions": [
+            "ipython src/analyze_OP_INV_portfolios.py",
+        ],
+        "targets": targets,
+        "file_dep": file_dep,
+        "clean": True,
+        "verbosity": 2, 
+    }
 
 # def task_summary_stats():
 #     """ """

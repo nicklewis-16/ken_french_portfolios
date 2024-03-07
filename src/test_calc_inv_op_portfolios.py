@@ -1,7 +1,7 @@
 import pandas as pd
 from pandas.testing import assert_frame_equal
-from calc_op_inv_portfolios import *
 from load_CRSP_Compustat import *
+from calc_op_inv_portfolios import *
 
 import config
 
@@ -109,44 +109,6 @@ daily_eq_wt_ret = dfs3['1']
 daily_num_firms = dfs3['2']
 daily_ave_firm_size = dfs3['3']
 
-
-comp = load_compustat(data_dir=DATA_DIR)
-crsp = load_CRSP_stock(data_dir=DATA_DIR)
-ccm = load_CRSP_Comp_Link_Table(data_dir=DATA_DIR)
-
-crsp2 = calculate_market_equity(ccm)
-crsp3, crsp_jun = use_dec_market_equity(crsp2)
-ccm2, ccm_jun = merge_CRSP_and_Compustat(crsp_jun, comp, ccm, crsp3)
-    
-ccm3 = name_ports(ccm2)
-vwret_m, ewret_m, num_firms = create_op_inv_portfolios(ccm3)
-
-
-# def test_calc_book_equity_and_years_in_compustat():
-    
-#     comp = load_compustat(data_dir=DATA_DIR)
-#     comp = calc_book_equity_and_years_in_compustat(comp)
-    
-#     expected = """
-#             gvkey   datadate        be
-#             353742 2022-11-30    11.413
-#             353945 2021-12-31   305.149
-#             353945 2022-12-31   316.595
-#             354003 2023-12-31       NaN
-#             356128 2022-12-31  1778.026
-#     """
-#     output = comp[["gvkey", "datadate", "be"]].tail().to_string(index=False)
-#     # print(output)
-#     assert output.replace(" ", "").replace("\n", "") == expected.replace(" ", "").replace("\n", "")
-    
-# def test_subset_CRSP_to_common_stock_and_exchanges():
-#     crsp = load_CRSP_stock_ciz(data_dir=DATA_DIR)
-#     crsp = subset_CRSP_to_common_stock_and_exchanges(crsp)
-    
-#     output = crsp.loc[crsp["jdate"] <= "2022", :].shape
-#     expected = (3348395, 16)
-    
-#     assert output== expected
 
 def test_output_shape():
     # columns should be 25 (5x5 sorts)
