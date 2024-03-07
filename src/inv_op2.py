@@ -236,7 +236,7 @@ def create_op_inv_portfolios(ccm4):
         .rename(columns={"retx": "n_firms"})
     )
     #num_firms["OIport"] = num_firms["opport"] + num_firms["invport"]
-    #num_firms = num_firms.pivot(index="date", columns="OIport", values="n_firms")
+    num_firms = num_firms.pivot(index="date", columns=["opport",'invport'], values="n_firms")
 
     ## market cap
     # avg_market_cap = (lambda x: np.mean(x['mktcap']))
