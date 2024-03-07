@@ -1,6 +1,7 @@
 import pandas as pd
 from pandas.testing import assert_frame_equal
 from load_CRSP_Compustat import *
+from calc_industry_portfolios import *
 
 import config
 
@@ -98,3 +99,32 @@ crsp = load_CRSP_stock(data_dir=DATA_DIR)
 ccm = load_CRSP_Comp_Link_Table(data_dir=DATA_DIR)
 
 
+crsp2 = calculate_market_equity(ccm)
+crsp3, crsp_jun = use_dec_market_equity(crsp2)
+crsp3['industry5'] = crsp3['siccd'].apply(assign_industry5)
+crsp3['industry49'] = crsp3['siccd'].apply(assign_industry49)
+vwret5, vwret_5n = create_industry_portfolios(crsp3, 5)
+vwret49, vwret_49n = create_industry_portfolios(crsp3, 49)
+
+vwret5piv = vwret5.pivot(index="date", columns="industry5", values="vwret") 
+vwret49piv = vwret49.pivot(index="date", columns="industry49", values="vwret")
+vwret_5npiv = vwret_5n.pivot(index="date", columns="industry5", values="ret")
+vwret_49npiv = vwret_49n.pivot(index="date", columns="industry49", values="ret")
+
+def test_5ind_file_exists():
+        # Assuming DATADIR is an environment variable. Replace with your actual path if needed
+
+        manual_dir = os.path.join(DATA_DIR, 'manual')
+        target_file = os.path.join(manual_dir, '5industry_portfolios.xlsx')
+
+        # Check if the file exists
+        assert(os.path.isfile(target_file), f"{target_file} does not exist")
+
+def test_49ind_file_exists():
+        # Assuming DATADIR is an environment variable. Replace with your actual path if needed
+
+        manual_dir = os.path.join(DATA_DIR, 'manual')
+        target_file = os.path.join(manual_dir, '49industry_portfolios.xlsx')
+
+        # Check if the file exists
+        assert(os.path.isfile(target_file), f"{target_file} does not exist")
