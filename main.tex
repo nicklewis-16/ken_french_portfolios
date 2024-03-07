@@ -4,19 +4,19 @@
 \usepackage{fancyhdr}
 \usepackage{lipsum} 
 \usepackage{lastpage} 
-
+\usepackage{graphicx}
 \usepackage{ifthen} 
 \pagestyle{fancy}
 \fancyhf{} 
 
 \fancyfoot[R]{%
-  \ifthenelse{\value{page}=4}{%
+  \ifthenelse{\value{page}=6}{%
     \href{https://doi.org/10.2307/2331394}{Kahle, K.M. and Walkling, R.A. (1996). \textit{The Impact of Industry Classifications on Financial Research. The Journal of Financial and Quantitative Analysis}, 31(3), p.309.}%
   }{}%
 }
 
 \title{Replicate several portfolios in Ken French’s Data Library}
-\author{yaa}
+\author{}
 \date{}
 
 \begin{document}
@@ -86,6 +86,71 @@ The construction resulted in 25 portfolios formed from the intersections of quin
 \subsubsection*{Data Coverage}
 
 The portfolios included all NYSE, AMEX, and NASDAQ stocks with (positive) book equity for $t-1$, total assets data for $t-2$ and $t-1$, non-missing revenues data for $t-1$, and at least one non-missing data point among cost of goods sold, selling, general, and administrative expenses, or interest expense for $t-1$, covering the period from July 1963 to January 2024 for monthly returns, and 1964 to 2023 for annual returns.
+
+\section*{Results}
+
+This section presents the results of our replication effort, including graphical representations of the portfolios' performance and tabulated data for clearer insights into the analysis.
+
+\subsection*{Graphical Analysis}
+
+Figures \ref{fig:graph1} and \ref{fig:graph2} show the performance trends of the portfolios formed on Earnings/Price (E/P) and Cashflow/Price (CF/P), respectively, across different time frames.
+
+\begin{figure}[ht]
+\centering
+\rule{0.8\textwidth}{0.4\textwidth} % Placeholder for graph 1
+\caption{E/P Portfolio Performance Over Time}
+\label{fig:graph1}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\rule{0.8\textwidth}{0.4\textwidth} % Placeholder for graph 2
+\caption{CF/P Portfolio Performance Over Time}
+\label{fig:graph2}
+\end{figure}
+
+\subsection*{Portfolio Performance Tables}
+
+Tables \ref{tab:ep_performance} and \ref{tab:cfp_performance} provide a detailed breakdown of the annual and monthly returns of portfolios formed on E/P and CF/P ratios.
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{l|l|l}
+Year & E/P Portfolio Return & Benchmark Return \\
+\hline
+2020 & X\% & Y\% \\
+2021 & X\% & Y\% \\
+\end{tabular}
+\caption{Annual Returns of E/P Portfolios Compared to Benchmark}
+\label{tab:ep_performance}
+\end{table}
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{l|l|l}
+Year & CF/P Portfolio Return & Benchmark Return \\
+\hline
+2020 & X\% & Y\% \\
+2021 & X\% & Y\% \\
+\end{tabular}
+\caption{Annual Returns of CF/P Portfolios Compared to Benchmark}
+\label{tab:cfp_performance}
+\end{table}
+
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.8\textwidth]{output/sec_per_ind_5.png}
+  \caption{A caption for the image.}
+  \label{fig:my_label}
+\end{figure}
+
+
+
+\subsection*{Discussion}
+
+[Here we can insert discussion about trends, comparisons to benchmarks, and any anomalies or significant findings observed in the data.]
+
 
 \section*{Challenges in Replication}
 

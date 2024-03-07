@@ -119,9 +119,15 @@ def merge_CRSP_and_Compustat(crsp_jun, comp, ccm, crsp3):
         comp, ccm, how="inner", on=["gvkey", "year", "month_num"]
     )
     ccm1["yearend"] = ccm1["datadate"] + YearEnd(0)
+
     #ccm1["date"] = ccm1["yearend"] + MonthEnd(6)
    
     ccm2 = ccm1[["gvkey", "permno", "datadate", "yearend", "date", "retx", "me", "be", "op", "inv", "count", "year"]]
+
+    ccm1["date"] = ccm1["yearend"] + MonthEnd(6)
+   
+    ccm2 = ccm1[["gvkey", "permno", "datadate", "yearend", "date", "retx", "be", "op", "inv", "count", "year"]]
+
 
     op_df = ccm2.groupby(['year', 'permno'])['op'].sum().reset_index().rename(columns={'op': 'year_op'})
     ccm2 = pd.merge(ccm2, op_df, on=['year', 'permno'], how='left')
@@ -129,7 +135,11 @@ def merge_CRSP_and_Compustat(crsp_jun, comp, ccm, crsp3):
     inv_df = ccm2.groupby(['year', 'permno'])['inv'].sum().reset_index().rename(columns={'inv': 'year_inv'})
     ccm2 = pd.merge(ccm2, inv_df, on=['year', 'permno'], how='left')
 
+
     #ccm2 = pd.merge(ccm2, crsp3[['permno', 'date', 'wt']], how="left", on=["permno", "date"])
+
+    ccm2 = pd.merge(ccm2, crsp3[['permno', 'date', 'wt']], how="left", on=["permno", "date"])
+
 
     # link comp and crsp
     ccm_jun = pd.merge(crsp_jun, ccm2, how="inner", on=["permno", "date"])
@@ -185,6 +195,7 @@ def create_op_inv_portfolios(ccm4):
     """
     # THIS CODE IS COMPLETED FOR YOU
     # monthly value-weigthed return
+
     # vwret_m = (
     #     ccm4.groupby(["date", "opport", "invport"])
     #     .apply(wavg, "retx", "wt")
@@ -223,10 +234,42 @@ def create_op_inv_portfolios(ccm4):
     #     .reset_index()
     #     .rename(columns={0: "vwret_y"})
     # )
+
+    vwret_m = (
+        ccm4.groupby(["date", "opport", "invport"])
+        .apply(wavg, "retx", "wt")
+        .to_frame()
+        .reset_index()
+        .rename(columns={0: "vwret_m"})
+    )
+    #vwret_m["OIport"] = vwret_m["opport"] + vwret_m["invport"]
+
+    # monthly equal-weigthed return
+    eq_wavg = (lambda x: np.mean(x['retx']))
+
+    ewret_m = (
+        ccm4.groupby(["date", "opport", "invport"])
+        .apply(eq_wavg)
+        .to_frame()
+        .reset_index()
+        .rename(columns={0: "ewret_m"})
+    )
+    #ewret_m["OIport"] = ewret_m["opport"] + ewret_m["invport"]
+
+    # yearly value-weigthed return
+    vwret_y = (
+        ccm4.groupby(["year", "opport", "invport"])
+        .apply(wavg, "retx", "wt")
+        .to_frame()
+        .reset_index()
+        .rename(columns={0: "vwret_y"})
+    )
+
     #vwret_y["OIport"] = vwret_y["opport"] + vwret_y["invport"]
 
     # yearly equal-weigthed return
     #eq_wavg = (lambda x: np.mean(x['mthret']))
+
 
     # ewret_y = (
     #     ccm4.groupby(["year", "opport", "invport"])
@@ -235,6 +278,15 @@ def create_op_inv_portfolios(ccm4):
     #     .reset_index()
     #     .rename(columns={0: "ewret_y"})
     # )
+
+    ewret_y = (
+        ccm4.groupby(["year", "opport", "invport"])
+        .apply(eq_wavg)
+        .to_frame()
+        .reset_index()
+        .rename(columns={0: "ewret_y"})
+    )
+
     #ewret_y["OIport"] = ewret_y["opport"] + ewret_y["invport"]
 
     # firm count
@@ -245,7 +297,11 @@ def create_op_inv_portfolios(ccm4):
         .rename(columns={"retx": "n_firms"})
     )
     #num_firms["OIport"] = num_firms["opport"] + num_firms["invport"]
+
     num_firms = num_firms.pivot(index="date", columns=["opport",'invport'], values="n_firms")
+
+    #num_firms = num_firms.pivot(index="date", columns="OIport", values="n_firms")
+
 
     ## market cap
     # avg_market_cap = (lambda x: np.mean(x['mktcap']))
@@ -259,7 +315,11 @@ def create_op_inv_portfolios(ccm4):
     # )
     # #cap["OIport"] = cap["opport"] + cap["invport"]
 
+
     return vwret_m, ewret_m, num_firms
+
+    return vwret_m, ewret_m, vwret_y, ewret_y, num_firms
+
 
 
 
@@ -280,4 +340,8 @@ if __name__ == "__main__":
     ## Form OP INV Factors
     ############################
     ccm3 = name_ports(ccm2)
+
     vwret_m, ewret_m, num_firms = create_op_inv_portfolios(ccm3) # create op_inv_portfolios
+
+    vwret_m, ewret_m, vwret_y, eqret_y, num_firms = create_op_inv_portfolios(ccm3) # create op_inv_portfolios
+
