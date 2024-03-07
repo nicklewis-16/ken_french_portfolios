@@ -197,6 +197,7 @@ def create_op_inv_portfolios(ccm4):
     ccm4['weight'] = ccm4['me'] / ccm4.groupby(['date', 'opport', 'invport'])['me'].transform('sum')
     ccm4['weighted_ret'] = ccm4['retx'] * ccm4['weight']
     vwret_m = ccm4.groupby(['date', 'opport', 'invport'])['weighted_ret'].sum().reset_index(name='value_weighted_ret')
+    vwret_m = vwret_m.pivot(index="date", columns=["opport",'invport'])
 
     # monthly equal-weigthed return
     # eq_wavg = (lambda x: np.mean(x['retx']))
@@ -212,6 +213,8 @@ def create_op_inv_portfolios(ccm4):
     ccm4['equal_weight'] = 1 / ccm4.groupby(['date', 'opport', 'invport'])['permno'].transform('count')
     ccm4['equal_weighted_ret'] = ccm4['retx'] * ccm4['equal_weight']
     ewret_m = ccm4.groupby(['date', 'opport', 'invport'])['equal_weighted_ret'].sum().reset_index(name='equal_weighted_ret')
+    ewret_m = ewret_m.pivot(index="date", columns=["opport",'invport'])
+
 
     #ewret_m["OIport"] = ewret_m["opport"] + ewret_m["invport"]
 
@@ -281,3 +284,10 @@ if __name__ == "__main__":
     ############################
     ccm3 = name_ports(ccm2)
     vwret_m, ewret_m, num_firms = create_op_inv_portfolios(ccm3) # create op_inv_portfolios
+
+    filename = OUTPUT_DIR / '5x5_OP_INV_portfolios.xlsx'
+
+    with pd.ExcelWriter(filename, engine='xlsxwriter') as writer:
+        vwret_m.to_excel(writer, sheet_name='VW Avg Mo. Ret', index=True)
+        ewret_m.to_excel(writer, sheet_name='EW Avg Mo. Ret', index=True)
+        num_firms.to_excel(writer, sheet_name='Num Firms', index=True)
