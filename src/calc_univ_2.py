@@ -157,10 +157,10 @@ def categorize_metric_exclusive(row, metric, bottom_30_bp, top_30_bp, quintiles_
         categories.append('Hi 30')
 
     quintiles = np.searchsorted(quintiles_bp, value, side='right')
-    categories.append(f'Qnt {quintiles+1}')
+    categories.append(f'Qnt {quintiles}')
 
     deciles = np.searchsorted(deciles_bp, value, side='right')
-    categories.append(f'Dec {deciles+1}')
+    categories.append(f'Dec {deciles}')
 
     return categories
 
@@ -169,7 +169,7 @@ def categorize_stocks_by_metric(dataframe, metric, category_name):
     Categorize stocks by a specified metric and directly append the categories to the dataframe.
     """
     # Calculate breakpoints for the NYSE stocks each year to define categories
-    for year, group in dataframe.groupby('year'):
+    for year, group in dataframe.groupby('jdate'):
         non_negative = group[group[metric] >= 0]
         negative = group[group[metric] < 0]
 

@@ -94,8 +94,7 @@ def task_pull_ken_french_data():
         "targets": targets,
         "file_dep": file_dep,
         "clean": True,
-        "verbosity": 2, # Print everything immediately. This is important in
-        # case WRDS asks for credentials.
+        "verbosity": 2,
     }
 
 
@@ -132,6 +131,38 @@ def task_pull_CRSP_Compustat():
         "verbosity": 2, # Print everything immediately. This is important in
         # case WRDS asks for credentials.
     }
+
+
+
+def task_calc_industries():
+    """calculates the industry portfolios
+    """
+    file_dep = [
+        "./src/config.py", 
+        "./src/load_CRSP_stock.py",
+        "./src/load_CRSP_Compustat.py",
+        ]
+    targets = [
+        Path(DATA_DIR) / "manual" / file for file in 
+        [
+            ## src/calc_industry_portfolios.py
+            "5industry_portfolios.xlsx",
+            "49industry_portfolios.xlsx"
+        ]
+    ]
+
+    return {
+        "actions": [
+            "ipython src/config.py",
+            "ipython src/calc_industry_portfolios.py",
+        ],
+        "targets": targets,
+        "file_dep": file_dep,
+        "clean": True,
+        "verbosity": 2, # Print everything immediately. This is important in
+        # case WRDS asks for credentials.
+    }
+
 
 # def task_summary_stats():
 #     """ """
