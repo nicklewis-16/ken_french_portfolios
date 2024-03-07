@@ -172,59 +172,6 @@ def assign_industry49(sic_code):
 
     return 'Other'  # Default category if no ranges match
 
-def draw_industry_assignment(securities_per_industry, name, n):
-    """
-    Draw a line plot showing the monthly number of securities by industry using matplotlib.
-
-    Parameters:
-    securities_per_industry (DataFrame): A DataFrame containing the data for securities per industry.
-
-    Returns:
-    None (plots the line plot and saves it to a file in output directory)
-    """
-
-    # Ensure 'date' is a datetime type for proper plotting.
-    securities_per_industry['date'] = pd.to_datetime(securities_per_industry['date'])
-    
-    # Sort the DataFrame to ensure that the data is plotted in chronological order.
-    securities_per_industry.sort_values('date', inplace=True)
-
-    # Creating a figure and axis for plotting.
-    fig, ax = plt.subplots(figsize=(10, 6))
-
-    # Get unique industry names for coloring and linestyles.
-    industries = securities_per_industry[name].unique()
-    linetypes = ["-", "--", "-.", ":"]
-    color_map = plt.cm.get_cmap('tab10', len(industries))  # Get a color map from matplotlib.
-
-    for i, industry in enumerate(industries):
-        # Filter the DataFrame for each industry.
-        industry_data = securities_per_industry[securities_per_industry[name] == industry]
-        
-        # Plot each industry with a unique color and linestyle.
-        ax.plot(industry_data['date'], industry_data['ret'],
-                linestyle=linetypes[i % len(linetypes)], color=color_map(i),
-                label=industry)
-
-    # Set the title of the plot.
-    ax.set_title("Monthly number of securities by industry")
-
-    # Improve formatting of the x-axis to handle dates nicely.
-    ax.xaxis.set_major_locator(mdates.YearLocator(10))  # Major ticks every 10 years.
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))  # Format as just the year.
-    
-    # Rotate and align the tick labels so they look better.
-    fig.autofmt_xdate()
-
-    # Use a formatter for the y-axis to ensure commas are used for thousands.
-    ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: '{:,.0f}'.format(x))) 
-
-    # Add a legend.
-    ax.legend()
-
-    # Save the figure to a file in the output directory.
-    fig.savefig(OUTPUT_DIR / f"sec_per_ind_{n}.png", dpi=300)
-    plt.close(fig)  
     
 def wavg(group, avg_name, weight_name):
     """function to calculate value weighted return
@@ -383,23 +330,22 @@ if __name__ == "__main__":
     crsp3['industry49'] = crsp3['siccd'].apply(assign_industry49)
     vwret5, vwret_5n = create_industry_portfolios(crsp3, 5)
     vwret49, vwret_49n = create_industry_portfolios(crsp3, 49)
-    draw_industry_assignment(vwret_5n, 'industry5', 5)
-    draw_industry_assignment(vwret_49n, 'industry49', 49)
-    vwret5 = vwret5.pivot(index="date", columns="industry5", values="vwret") 
-    vwret49 = vwret49.pivot(index="date", columns="industry49", values="vwret")
-    vwret_5n = vwret_5n.pivot(index="date", columns="industry5", values="ret")
-    vwret_49n = vwret_49n.pivot(index="date", columns="industry49", values="ret")
+    
+    vwret5piv = vwret5.pivot(index="date", columns="industry5", values="vwret") 
+    vwret49piv = vwret49.pivot(index="date", columns="industry49", values="vwret")
+    vwret_5npiv = vwret_5n.pivot(index="date", columns="industry5", values="ret")
+    vwret_49npiv = vwret_49n.pivot(index="date", columns="industry49", values="ret")
 
     filename = DATA_DIR / 'manual' / '5industry_portfolios.xlsx'
 
     with pd.ExcelWriter(filename, engine='xlsxwriter') as writer:
-        vwret5.to_excel(writer, sheet_name='VW Avg Mo. Ret', index=True)
-        vwret_5n.to_excel(writer, sheet_name='Num Firms', index=True)
+        vwret5piv.to_excel(writer, sheet_name='VW Avg Mo. Ret', index=True)
+        vwret_5npiv.to_excel(writer, sheet_name='Num Firms', index=True)
         
     filename = DATA_DIR / 'manual' / '49industry_portfolios.xlsx'
 
     with pd.ExcelWriter(filename, engine='xlsxwriter') as writer:
-        vwret49.to_excel(writer, sheet_name='VW Avg Mo. Ret', index=True)
-        vwret_49n.to_excel(writer, sheet_name='Num Firms', index=True)
+        vwret49piv.to_excel(writer, sheet_name='VW Avg Mo. Ret', index=True)
+        vwret_49npiv.to_excel(writer, sheet_name='Num Firms', index=True)
     
     
