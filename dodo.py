@@ -278,7 +278,7 @@ def task_calc_univ_portfolios_temp():
     }
 
 
-def task_calc_univ_portfolios_temp():
+def task_calc_univ_portfolios():
     """calculates the univariate portfolios
     """
     file_dep = [
