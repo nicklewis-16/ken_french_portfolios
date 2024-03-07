@@ -105,6 +105,8 @@ def task_pull_CRSP_Compustat():
         "./src/config.py", 
         "./src/load_CRSP_stock.py",
         "./src/load_CRSP_Compustat.py",
+        "./src/load_CRSP_stock_v2.py",
+        "./src/load_CRSP_Compustat_v2.py",
         ]
     targets = [
         Path(DATA_DIR) / "pulled" / file for file in 
@@ -116,6 +118,13 @@ def task_pull_CRSP_Compustat():
             ## src/load_CRSP_stock.py
             "CRSP_MSF_INDEX_INPUTS.parquet", 
             "CRSP_MSIX.parquet", 
+            ## src/load_CRSP_Compustat_v2.py
+            "v2/Compustat.parquet",
+            "v2/CRSP_stock.parquet",
+            "v2/CRSP_Comp_Link_Table.parquet",
+            ## src/load_CRSP_stock_v2.py
+            "v2/CRSP_MSF_INDEX_INPUTS.parquet", 
+            "v2/CRSP_MSIX.parquet", 
         ]
     ]
 
@@ -124,6 +133,8 @@ def task_pull_CRSP_Compustat():
             "ipython src/config.py",
             "ipython src/load_CRSP_Compustat.py",
             "ipython src/load_CRSP_stock.py",
+            "ipython src/load_CRSP_Compustat_v2.py",
+            "ipython src/load_CRSP_stock_v2.py",
         ],
         "targets": targets,
         "file_dep": file_dep,
@@ -159,8 +170,32 @@ def task_calc_industries():
         "targets": targets,
         "file_dep": file_dep,
         "clean": True,
-        "verbosity": 2, # Print everything immediately. This is important in
-        # case WRDS asks for credentials.
+        "verbosity": 2, 
+    }
+
+def task_analyze_industries():
+    """calculates the industry portfolios
+    """
+    file_dep = [
+        "./src/calc_industry_portfolios.py",
+        ]
+    targets = [
+        Path(OUTPUT_DIR) / file for file in 
+        [
+            ## src/calc_industry_portfolios.py
+            "sec_per_ind_5.png",
+            "actual_sec_per_ind_5.png",
+        ]
+    ]
+
+    return {
+        "actions": [
+            "ipython src/analyze_industry_portfolios.py",
+        ],
+        "targets": targets,
+        "file_dep": file_dep,
+        "clean": True,
+        "verbosity": 2, 
     }
 
 

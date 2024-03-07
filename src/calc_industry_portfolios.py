@@ -320,32 +320,31 @@ def create_industry_portfolios(ccm4,n):
 
 
 
-if __name__ == "__main__":
-    comp = load_compustat(data_dir=DATA_DIR)
-    crsp = load_CRSP_stock(data_dir=DATA_DIR)
-    ccm = load_CRSP_Comp_Link_Table(data_dir=DATA_DIR)
-    crsp2 = calculate_market_equity(ccm)
-    crsp3, crsp_jun = use_dec_market_equity(crsp2)
-    crsp3['industry5'] = crsp3['siccd'].apply(assign_industry5)
-    crsp3['industry49'] = crsp3['siccd'].apply(assign_industry49)
-    vwret5, vwret_5n = create_industry_portfolios(crsp3, 5)
-    vwret49, vwret_49n = create_industry_portfolios(crsp3, 49)
-    
-    vwret5piv = vwret5.pivot(index="date", columns="industry5", values="vwret") 
-    vwret49piv = vwret49.pivot(index="date", columns="industry49", values="vwret")
-    vwret_5npiv = vwret_5n.pivot(index="date", columns="industry5", values="ret")
-    vwret_49npiv = vwret_49n.pivot(index="date", columns="industry49", values="ret")
 
-    filename = DATA_DIR / 'manual' / '5industry_portfolios.xlsx'
+comp = load_compustat(data_dir=DATA_DIR)
+crsp = load_CRSP_stock(data_dir=DATA_DIR)
+ccm = load_CRSP_Comp_Link_Table(data_dir=DATA_DIR)
+crsp2 = calculate_market_equity(ccm)
+crsp3, crsp_jun = use_dec_market_equity(crsp2)
+crsp3['industry5'] = crsp3['siccd'].apply(assign_industry5)
+crsp3['industry49'] = crsp3['siccd'].apply(assign_industry49)
+vwret5, vwret_5n = create_industry_portfolios(crsp3, 5)
+vwret49, vwret_49n = create_industry_portfolios(crsp3, 49)
 
-    with pd.ExcelWriter(filename, engine='xlsxwriter') as writer:
-        vwret5piv.to_excel(writer, sheet_name='VW Avg Mo. Ret', index=True)
-        vwret_5npiv.to_excel(writer, sheet_name='Num Firms', index=True)
-        
-    filename = DATA_DIR / 'manual' / '49industry_portfolios.xlsx'
+vwret5piv = vwret5.pivot(index="date", columns="industry5", values="vwret") 
+vwret49piv = vwret49.pivot(index="date", columns="industry49", values="vwret")
+vwret_5npiv = vwret_5n.pivot(index="date", columns="industry5", values="ret")
+vwret_49npiv = vwret_49n.pivot(index="date", columns="industry49", values="ret")
 
-    with pd.ExcelWriter(filename, engine='xlsxwriter') as writer:
-        vwret49piv.to_excel(writer, sheet_name='VW Avg Mo. Ret', index=True)
-        vwret_49npiv.to_excel(writer, sheet_name='Num Firms', index=True)
+filename = DATA_DIR / 'manual' / '5industry_portfolios.xlsx'
+
+with pd.ExcelWriter(filename, engine='xlsxwriter') as writer:
+    vwret5piv.to_excel(writer, sheet_name='VW Avg Mo. Ret', index=True)
+    vwret_5npiv.to_excel(writer, sheet_name='Num Firms', index=True)
     
-    
+filename = DATA_DIR / 'manual' / '49industry_portfolios.xlsx'
+
+with pd.ExcelWriter(filename, engine='xlsxwriter') as writer:
+    vwret49piv.to_excel(writer, sheet_name='VW Avg Mo. Ret', index=True)
+    vwret_49npiv.to_excel(writer, sheet_name='Num Firms', index=True)
+

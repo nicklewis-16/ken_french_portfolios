@@ -40,7 +40,7 @@ def draw_industry_assignment(securities_per_industry, name, n):
     securities_per_industry.sort_values('date', inplace=True)
 
     # Creating a figure and axis for plotting.
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(12, 12))
 
     # Get unique industry names for coloring and linestyles.
     industries = securities_per_industry[name].unique()
@@ -57,7 +57,7 @@ def draw_industry_assignment(securities_per_industry, name, n):
                 label=industry)
 
     # Set the title of the plot.
-    ax.set_title("Monthly number of securities by industry")
+    ax.set_title("Replicated monthly number of securities by industry")
 
     # Improve formatting of the x-axis to handle dates nicely.
     ax.xaxis.set_major_locator(mdates.YearLocator(10))  # Major ticks every 10 years.
@@ -79,5 +79,22 @@ def draw_industry_assignment(securities_per_industry, name, n):
     
     
 if __name__ == "__main__":
-    
     draw_industry_assignment(vwret_5n, 'industry5', 5)
+    fig, ax = plt.subplots(figsize=(12, 12))
+    ax.plot(num5_firms['1960':])
+    ax.set_title("Actual monthly number of securities by industry")
+    ax.xaxis.set_major_locator(mdates.YearLocator(10))  # Major ticks every 10 years.
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))  # Format as just the year.
+    
+    # Rotate and align the tick labels so they look better.
+    fig.autofmt_xdate()
+
+    # Use a formatter for the y-axis to ensure commas are used for thousands.
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: '{:,.0f}'.format(x))) 
+
+    # Add a legend.
+    ax.legend()
+
+    # Save the figure to a file in the output directory.
+    fig.savefig(OUTPUT_DIR / f"actual_sec_per_ind_5.png", dpi=300)
+    plt.close(fig)  
