@@ -252,41 +252,13 @@ def task_analyze_op_inv():
         "verbosity": 2, 
     }
 
-# def task_summary_stats():
-#     """ """
-#     file_dep = ["./src/example_table.py"]
-#     file_output = [
-#         "example_table.tex",
-#         "pandas_to_latex_simple_table1.tex",
-#         ]
-#     targets = [OUTPUT_DIR / file for file in file_output]
-
-#     return {
-#         "actions": [
-#             "ipython ./src/example_table.py",
-#             "ipython ./src/pandas_to_latex_demo.py",
-#         ],
-#         "targets": targets,
-#         "file_dep": file_dep,
-#         "clean": True,
-#     }
-
-
-# def task_example_plot():
-#     """Example plots"""
-#     file_dep = [Path("./src") / file for file in ["example_plot.py", "load_fred.py"]]
-#     file_output = ["example_plot.png"]
-#     targets = [OUTPUT_DIR / file for file in file_output]
-
-#     return {
-#         "actions": [
-#             "ipython ./src/example_plot.py",
-#         ],
-#         "targets": targets,
-#         "file_dep": file_dep,
-#         "clean": True,
-#     }
-
+def task_compile_latex():
+    return {
+        'actions': ['pdflatex -interaction=nonstopmode main.tex'],
+        'file_dep': ['main.tex'],  # Add dependencies like your .tex file and any figures or included files
+        'targets': ['main.pdf'],  # The expected output PDF file
+        'clean': True,  # Clean command will remove the target
+    }
 
 def task_convert_notebooks_to_scripts():
     """Preps the notebooks for presentation format.
@@ -296,8 +268,7 @@ def task_convert_notebooks_to_scripts():
     build_dir.mkdir(parents=True, exist_ok=True)
 
     notebooks = [
-        "01_example_notebook.ipynb",
-        "02_interactive_plot_example.ipynb",
+        "step_by_step.ipynb",
     ]
     file_dep = [Path("./src") / file for file in notebooks]
     stems = [notebook.split(".")[0] for notebook in notebooks]
@@ -323,8 +294,7 @@ def task_run_notebooks():
     Execute notebooks with summary stats and plots and remove metadata.
     """
     notebooks = [
-        "01_example_notebook.ipynb",
-        "02_interactive_plot_example.ipynb",
+        "step_by_step.ipynb",
     ]
     stems = [notebook.split(".")[0] for notebook in notebooks]
 
@@ -335,9 +305,9 @@ def task_run_notebooks():
 
     targets = [
         ## 01_example_notebook.ipynb output
-        OUTPUT_DIR / "sine_graph.png",
-        ## Notebooks converted to HTML
-        *[OUTPUT_DIR / f"{stem}.html" for stem in stems],
+        # OUTPUT_DIR / "sine_graph.png",
+        # ## Notebooks converted to HTML
+        # *[OUTPUT_DIR / f"{stem}.html" for stem in stems],
     ]
 
     actions = [
@@ -357,62 +327,30 @@ def task_run_notebooks():
     }
 
 
-# def task_knit_RMarkdown_files():
-#     """Preps the RMarkdown files for presentation format.
-#     This will knit the RMarkdown files for easier sharing of results.
-#     """
-#     files_to_knit = [
-#         'shift_share.Rmd',
-#         ]
 
-#     files_to_knit_stems = [file.split('.')[0] for file in files_to_knit]
-
+# def task_compile_latex_docs():
+#     """Example plots"""
 #     file_dep = [
-#         'load_performance_and_loan_merged.py',
-#         *[file + ".Rmd" for file in files_to_knit_stems],
-#         ]
+#         "./reports/report_example.tex",
+#         "./reports/slides_example.tex",
+#         "./src/example_plot.py",
+#         "./src/example_table.py",
+#     ]
+#     file_output = [
+#         "./reports/main.pdf",
+#     ]
+#     targets = [file for file in file_output]
 
-#     file_output = [file + '.html' for file in files_to_knit_stems]
-#     targets = [OUTPUT_DIR / file for file in file_output]
-
-#     def knit_string(file):
-#         return f"""Rscript -e 'library(rmarkdown); rmarkdown::render("{file}.Rmd", output_format="html_document", OUTPUT_DIR="../output/")'"""
-#     actions = [knit_string(file) for file in files_to_knit_stems]
 #     return {
 #         "actions": [
-#                     "module use -a /opt/aws_opt/Modulefiles",
-#                     "module load R/4.2.2",
-#                     *actions],
+#             "latexmk -xelatex -cd ./reports/main.tex",  # Compile
+#             "latexmk -xelatex -c -cd ./reports/main.tex",  # Clean
+#             "latexmk -xelatex -cd ./reports/slides_example.tex",  # Compile
+#             "latexmk -xelatex -c -cd ./reports/slides_example.tex",  # Clean
+#             # "latexmk -CA -cd ../reports/",
+#         ],
 #         "targets": targets,
-#         'task_dep':[],
 #         "file_dep": file_dep,
+#         "clean": True,
 #     }
-
-
-def task_compile_latex_docs():
-    """Example plots"""
-    file_dep = [
-        "./reports/report_example.tex",
-        "./reports/slides_example.tex",
-        "./src/example_plot.py",
-        "./src/example_table.py",
-    ]
-    file_output = [
-        "./reports/report_example.pdf",
-        "./reports/slides_example.pdf",
-    ]
-    targets = [file for file in file_output]
-
-    return {
-        "actions": [
-            "latexmk -xelatex -cd ./reports/report_example.tex",  # Compile
-            "latexmk -xelatex -c -cd ./reports/report_example.tex",  # Clean
-            "latexmk -xelatex -cd ./reports/slides_example.tex",  # Compile
-            "latexmk -xelatex -c -cd ./reports/slides_example.tex",  # Clean
-            # "latexmk -CA -cd ../reports/",
-        ],
-        "targets": targets,
-        "file_dep": file_dep,
-        "clean": True,
-    }
 
