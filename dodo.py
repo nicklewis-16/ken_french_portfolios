@@ -251,6 +251,57 @@ def task_analyze_op_inv():
         "clean": True,
         "verbosity": 2, 
     }
+    
+def task_calc_univ_portfolios_temp():
+    """calculates the univariate portfolios
+    """
+    file_dep = [
+        "./src/config.py", 
+        "./src/load_CRSP_stock_v2.py",
+        "./src/load_CRSP_Compustat_v2.py",
+        ]
+    targets = [
+        Path(DATA_DIR) / "manual" / file for file in 
+        [
+            "portfolio_metrics.xlsx",
+        ]
+    ]
+
+    return {
+        "actions": [
+            "ipython src/calc_univariate_portfolios.py",
+        ],
+        "targets": targets,
+        "file_dep": file_dep,
+        "clean": True,
+        "verbosity": 2, 
+    }
+
+
+def task_calc_univ_portfolios_temp():
+    """calculates the univariate portfolios
+    """
+    file_dep = [
+        "./src/calc_univariate_portfolios.py"
+        ]
+    targets = [
+        Path(OUTPUT_DIR) / file for file in 
+        [
+            ## src/calc_op_inv_portfolios.py
+            "portfolio_metrics_final.xlsx",
+        ]
+    ]
+
+    return {
+        "actions": [
+            "ipython src/univ_ptf_output.py",
+        ],
+        "targets": targets,
+        "file_dep": file_dep,
+        "clean": True,
+        "verbosity": 2, 
+    }
+
 
 def task_compile_latex():
     return {
