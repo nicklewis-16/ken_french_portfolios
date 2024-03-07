@@ -3,36 +3,51 @@ import numpy as np
 from pandas.tseries.offsets import MonthEnd, YearEnd
 from pathlib import Path
 import config
-from load_CRSP_Compustat import *
-from load_CRSP_stock import *
+from load_CRSP_Compustat_v2 import *
+from load_CRSP_stock_v2 import *
 
 OUTPUT_DIR = Path(config.OUTPUT_DIR)
 DATA_DIR = Path(config.DATA_DIR)
 
 
+def subset_CRSP_to_common_stock_and_exchanges(crsp):
+    """Subset to common stock universe and
+    stocks traded on NYSE, AMEX and NASDAQ.
+
+    NOTE:
+        With the new CIZ format, it is not necessary to apply delisting
+        returns, as they are already applied.
+    """
+    crsp_filtered = crsp[
+        (crsp['sharetype'] == 'NS') &
+        (crsp['securitytype'] == 'EQTY') &  # Confirm this correctly filters equity securities
+        (crsp['securitysubtype'] == 'COM') &  # Ensure 'COM' accurately captures common stocks
+        (crsp['usincflg'] == 'Y') &  # U.S.-incorporated
+        # Assuming more precise issuer types or additional conditions were found
+        (crsp['issuertype'].isin(['ACOR', 'CORP'])) &  # Confirm these are the correct issuer types
+        (crsp['primaryexch'].isin(['N', 'A', 'Q'])) &
+        (crsp['tradingstatusflg'] == 'A') &
+        (crsp['conditionaltype'] == 'RW')
+        ]
+
+    return crsp_filtered
+
 
 def calculate_market_equity(crsp):
-    crsp = crsp.sort_values(by=["date", "permco", "me"])
-
-    ### Aggregate Market Cap ###
-    # sum of me across different permno belonging to same permco a given date
-    crsp_summe = crsp.groupby(["date", "permco"])["me"].sum().reset_index()
-
-    # largest mktcap within a permco/date
-    crsp_maxme = crsp.groupby(["date", "permco"])["me"].max().reset_index()
-
-    # join by jdate/maxme to find the permno
-    crsp1 = pd.merge(crsp, crsp_maxme, how="inner", on=["date", "permco", "me"])
-
-    # drop me column and replace with the sum me
-    crsp1 = crsp1.drop(["me"], axis=1)
-
-    # join with sum of me to get the correct market cap info
-    crsp2 = pd.merge(crsp1, crsp_summe, how="inner", on=["date", "permco"])
-
-    # sort by permno and date and also drop duplicates
-    crsp2 = crsp2.sort_values(by=["permno", "date"]).drop_duplicates()
-    return crsp2
+    """
+    'There were cases when the same firm (permco) had two or more securities
+    (permno) on the same date. For the purpose of ME for the firm, we
+    aggregated all ME for a given permco, date. This aggregated ME was assigned
+    to the CRSP permno that has the largest ME.
+    """
+    crsp['me'] = crsp['mthprc'] * crsp['shrout']
+    agg_me = crsp.groupby(['jdate', 'permco'])['me'].sum().reset_index()
+    max_me = crsp.groupby(['jdate', 'permco'])['me'].max().reset_index()
+    crsp = crsp.merge(max_me, how='inner', on=['jdate', 'permco', 'me'])
+    crsp = crsp.drop('me', axis=1)
+    crsp = crsp.merge(agg_me, how='inner', on=['jdate', 'permco'])
+    crsp = crsp.sort_values(by=['permno', 'jdate']).drop_duplicates()
+    return crsp
 
 
 def use_dec_market_equity(crsp2):
@@ -43,20 +58,20 @@ def use_dec_market_equity(crsp2):
     the portfolio.'
 
     """
-    # keep December market cap
-    crsp2["year"] = crsp2["date"].dt.year
-    crsp2["month"] = crsp2["date"].dt.month
-    decme = crsp2[crsp2["month"] == 12]
-    decme = decme[["permno", "date", "me", "year"]].rename(
+    crsp2["year"] = crsp2["jdate"].dt.year
+    crsp2["month"] = crsp2["jdate"].dt.month
+    decme = crsp2[crsp2["month"] == 12].copy()
+    decme["year"] = decme["year"] - 1 #Shift ME to align with December of t-1
+    decme = decme[["permno", "mthcaldt", "jdate", "me", "year"]].rename(
         columns={"me": "dec_me"}
     )
 
     ### July to June dates
-    crsp2["ffdate"] = crsp2["date"] + MonthEnd(-6)
+    crsp2["ffdate"] = crsp2["jdate"] + MonthEnd(-6)
     crsp2["ffyear"] = crsp2["ffdate"].dt.year
     crsp2["ffmonth"] = crsp2["ffdate"].dt.month
-    crsp2["1+retx"] = 1 + crsp2["retx"]
-    crsp2 = crsp2.sort_values(by=["permno", "month"])
+    crsp2["1+retx"] = 1 + crsp2["mthretx"]
+    crsp2 = crsp2.sort_values(by=["permno", "mthcaldt"])
 
     # cumret by stock
     crsp2["cumretx"] = crsp2.groupby(["permno", "ffyear"])["1+retx"].cumprod()
@@ -84,60 +99,79 @@ def use_dec_market_equity(crsp2):
         crsp3["ffmonth"] == 1, crsp3["L_me"], crsp3["mebase"] * crsp3["L_cumretx"]
     )
 
-    decme["year"] = decme["year"] + 1
+    #decme.loc[:, "year"] = decme["year"] - 1
     decme = decme[["permno", "year", "dec_me"]]
 
     # Info as of June
     crsp3_jun = crsp3[crsp3["month"] == 6]
 
     crsp_jun = pd.merge(crsp3_jun, decme, how="inner", on=["permno", "year"])
-
-    crsp_jun = crsp_jun.sort_values(by=["permno", "month"]).drop_duplicates()
+    crsp_jun = crsp_jun[
+        [
+            "permno",
+            "mthcaldt",
+            "jdate",
+            "sharetype",
+            "securitytype",
+            "securitysubtype",
+            "usincflg",
+            "issuertype",
+            "primaryexch",
+            "conditionaltype",
+            "tradingstatusflg",
+            "mthret",
+            "me",
+            "wt",
+            "cumretx",
+            "mebase",
+            "L_me",
+            "dec_me",
+        ]
+    ]
+    crsp_jun = crsp_jun.sort_values(by=["permno", "jdate"]).drop_duplicates()
     return crsp3, crsp_jun
 
 
 def merge_CRSP_and_Compustat(crsp_jun, comp, ccm):
-    #ccm["linkenddt"] = ccm["linkenddt"].fillna(pd.to_datetime("today"))
-    comp['month_num'] = comp['datadate'].dt.month
-    comp['year'] = comp['datadate'].dt.year
-    ccm['month_num'] = ccm['date'].dt.month
-    ccm['year'] = ccm['date'].dt.year
-    
-    ccm1 = pd.merge(comp, ccm, how="left", on=["gvkey", "year", "month_num"])
+    ccm["linkenddt"] = ccm["linkenddt"].fillna(pd.to_datetime("today"))
+
+    ccm1 = pd.merge(comp, ccm, how="left", on=["gvkey"])
     ccm1["yearend"] = ccm1["datadate"] + YearEnd(0)
     ccm1["jdate"] = ccm1["yearend"] + MonthEnd(6)
 
-    #ccm2 = ccm1[(ccm1["jdate"] >= ccm1["linkdt"]) & (ccm1["jdate"] <= ccm1["linkenddt"])]
+    ccm2 = ccm1[(ccm1["jdate"] >= ccm1["linkdt"]) & (ccm1["jdate"] <= ccm1["linkenddt"])]
 
-    
-    #ccm_jun['year'] = ccm['date_x'].dt.year
-    ccm_jun = ccm1[ccm1['month_num']==6]
+    ccm_jun = pd.merge(crsp_jun, ccm2, how="inner", on=["permno", "jdate"])
     ccm_jun["ep"] = ccm_jun["ni"] * 1000 / ccm_jun["dec_me"]
+    # Add calculations for cf and cfp
     ccm_jun['cf'] = ccm_jun['ebit'] + ccm_jun['dp'].fillna(0) + ccm_jun['txditc'].fillna(0)
     ccm_jun['cfp'] = ccm_jun['cf'] / ccm_jun['dec_me']
     return ccm_jun, ccm1
 
+
 comp = load_compustat(data_dir=DATA_DIR)
-crsp = load_CRSP_stock(data_dir=DATA_DIR)
+crsp = load_CRSP_stock_ciz(data_dir=DATA_DIR)
 ccm = load_CRSP_Comp_Link_Table(data_dir=DATA_DIR)
 
 
 crsp[['permco', 'permno']] = crsp[['permco', 'permno']].astype(int)
-crsp['jdate'] = crsp['month'] + MonthEnd(0)
-crsp['retx'] = pd.to_numeric(crsp['retx'], errors='coerce')
-crsp['ret'] = pd.to_numeric(crsp['ret'], errors='coerce')
-crsp['year'] = crsp['month'].dt.year
+crsp['jdate'] = crsp['mthcaldt'] + MonthEnd(0)
+crsp['mthretx'] = pd.to_numeric(crsp['mthretx'], errors='coerce')
+crsp['mthret'] = pd.to_numeric(crsp['mthret'], errors='coerce')
+crsp['year'] = crsp['mthcaldt'].dt.year
 
-annual_ret_ex_div = crsp.groupby(['permno', 'year'])['retx'].apply(lambda x: (1 + x).prod() - 1).reset_index(name='annual_ret_ex_div')
-annual_ret_inc_div = crsp.groupby(['permno', 'year'])['ret'].apply(lambda x: (1 + x).prod() - 1).reset_index(name='annual_ret_inc_div')
+annual_ret_ex_div = crsp.groupby(['permno', 'year'])['mthretx'].apply(lambda x: (1 + x).prod() - 1).reset_index(name='annual_ret_ex_div')
+annual_ret_inc_div = crsp.groupby(['permno', 'year'])['mthret'].apply(lambda x: (1 + x).prod() - 1).reset_index(name='annual_ret_inc_div')
 
 crsp = pd.merge(crsp, annual_ret_ex_div, on=['permno', 'year'], how='left')
 crsp = pd.merge(crsp, annual_ret_inc_div, on=['permno', 'year'], how='left')
 
 
+crsp = subset_CRSP_to_common_stock_and_exchanges(crsp)
 crsp2 = calculate_market_equity(crsp)
 crsp3, crsp_jun = use_dec_market_equity(crsp2)
 ccm_jun, ccm1 = merge_CRSP_and_Compustat(crsp_jun, comp, ccm)
+
 
 def categorize_metric_exclusive(row, metric, bottom_30_bp, top_30_bp, quintiles_bp, deciles_bp):
     """
@@ -157,10 +191,10 @@ def categorize_metric_exclusive(row, metric, bottom_30_bp, top_30_bp, quintiles_
         categories.append('Hi 30')
 
     quintiles = np.searchsorted(quintiles_bp, value, side='right')
-    categories.append(f'Qnt {quintiles}')
+    categories.append(f'Qnt {quintiles+1}')
 
     deciles = np.searchsorted(deciles_bp, value, side='right')
-    categories.append(f'Dec {deciles}')
+    categories.append(f'Dec {deciles+1}')
 
     return categories
 
@@ -169,7 +203,7 @@ def categorize_stocks_by_metric(dataframe, metric, category_name):
     Categorize stocks by a specified metric and directly append the categories to the dataframe.
     """
     # Calculate breakpoints for the NYSE stocks each year to define categories
-    for year, group in dataframe.groupby('jdate'):
+    for year, group in dataframe.groupby('year'):
         non_negative = group[group[metric] >= 0]
         negative = group[group[metric] < 0]
 
@@ -227,7 +261,7 @@ def calculate_portfolio_returns(df, portfolio_prefix):
             if column in df and pd.api.types.is_numeric_dtype(df[column]):
                 # Calculate weighted average return for each group
                 weighted_avg = df.groupby('jdate').apply(
-                    lambda x: np.average(x['ret'].fillna(0), weights=x[column].fillna(0))
+                    lambda x: np.average(x['mthret'].fillna(0), weights=x[column].fillna(0))
                     if not x[column].isnull().all() else np.nan
                 )
                 portfolio_returns[column] = weighted_avg
@@ -243,18 +277,18 @@ portfolio_returns_cfp = calculate_portfolio_returns(ccm_jun, 'cfp')
 def calculate_portfolio_monthly_returns(df, metric_categories):
     # Calculate value-weighted returns
     df['weight'] = df['me'] / df.groupby(['jdate', metric_categories])['me'].transform('sum')
-    df['weighted_ret'] = df['ret'] * df['weight']
+    df['weighted_ret'] = df['mthret'] * df['weight']
     value_weighted = df.groupby(['jdate', metric_categories])['weighted_ret'].sum().reset_index(name='value_weighted_ret')
 
     # Calculate equal-weighted returns
     df['equal_weight'] = 1 / df.groupby(['jdate', metric_categories])['permno'].transform('count')
-    df['equal_weighted_ret'] = df['ret'] * df['equal_weight']
+    df['equal_weighted_ret'] = df['mthret'] * df['equal_weight']
     equal_weighted = df.groupby(['jdate', metric_categories])['equal_weighted_ret'].sum().reset_index(name='equal_weighted_ret')
 
     return value_weighted, equal_weighted
 
 def calculate_portfolio_annual_returns(df, metric_categories):
-    df['annual_ret'] = df.groupby(['permno', 'year'])['ret'].transform(lambda x: (1 + x).prod() - 1)
+    df['annual_ret'] = df.groupby(['permno', 'year'])['mthret'].transform(lambda x: (1 + x).prod() - 1)
     # Value-weighted
     df['annual_weight'] = df['me'] / df.groupby(['year', metric_categories])['me'].transform('sum')
     df['annual_weighted_ret'] = df['annual_ret'] * df['annual_weight']
@@ -285,7 +319,7 @@ average_size_ep, firm_count_ep = calculate_firm_size_and_count(ccm_jun, 'ep_cate
 average_size_cfp, firm_count_cfp = calculate_firm_size_and_count(ccm_jun, 'cfp_categories')
 
 
-with pd.ExcelWriter(OUTPUT_DIR / 'portfolio_metrics.xlsx') as writer:
+with pd.ExcelWriter(DATA_DIR / 'manual'/ 'portfolio_metrics.xlsx') as writer:
     value_weighted_ep.to_excel(writer, sheet_name='Value Weighted Monthly EP')
     equal_weighted_ep.to_excel(writer, sheet_name='Equal Weighted Monthly EP')
     value_weighted_cfp.to_excel(writer, sheet_name='Value Weighted Monthly CFP')

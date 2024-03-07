@@ -61,7 +61,7 @@ def process_sheet_v2(sheet_name, df):
     return df_final
 
 # Read the Excel file
-file_path = OUTPUT_DIR /'portfolio_metrics.xlsx'
+file_path = DATA_DIR/ "manual" /'portfolio_metrics.xlsx'
 xls = pd.ExcelFile(file_path, engine='openpyxl')
 
 # Process all sheets in the Excel file with the updated function
@@ -71,6 +71,17 @@ for sheet_name in xls.sheet_names:
     df = pd.read_excel(xls, sheet_name=sheet_name)
     processed_df = process_sheet_v2(sheet_name, df)
     dfs_v2[sheet_name] = processed_df
+
+for sheet_name, df in dfs_v2.items():
+    # Create a range of years from 1952 to 2022
+    years = pd.DataFrame({'year': range(1952, 2023)})
+    # If the dataframe has more than one column, concatenate years with the rest of the dataframe
+    if df.shape[1] > 1:
+        updated_df = pd.concat([years, df.iloc[:, 1:].reset_index(drop=True)], axis=1)
+    else:
+        updated_df = years
+    # Update the dictionary with the updated dataframe
+    dfs_v2[sheet_name] = updated_df
 
 # Save the processed dataframes into a new Excel file with version 2 modifications
 export_path_v2 = OUTPUT_DIR /'portfolio_metrics_final.xlsx'
@@ -106,10 +117,10 @@ def generate_summary_statistics(dfs):
 summary_stats_dfs = generate_summary_statistics(dfs_v2)
 
 # Save the summary statistics DataFrames into a new Excel file
-summary_stats_export_path = OUTPUT_DIR /'Univ_portfolio_summary.xlsx'
-with pd.ExcelWriter(summary_stats_export_path, engine='openpyxl') as writer:
-    for sheet_name, summary_df in summary_stats_dfs.items():
-        summary_df.to_excel(writer, sheet_name=sheet_name)
+#summary_stats_export_path = OUTPUT_DIR /'Univ_portfolio_summary.xlsx'
+#with pd.ExcelWriter(summary_stats_export_path, engine='openpyxl') as writer:
+    #for sheet_name, summary_df in summary_stats_dfs.items():
+        #summary_df.to_excel(writer, sheet_name=sheet_name)
 
 
 
@@ -123,31 +134,54 @@ categories = ['Category_Hi 30', 'Category_Lo 30', 'Category_Med 40']
 file_path1 = OUTPUT_DIR /'portfolio_metrics_final.xlsx'
 
 
-# Function to plot and save graphs for a given sheet and category
-def plot_and_save_graph(sheet_name, category, df):
+import pandas as pd
+import matplotlib.pyplot as plt
+from pathlib import Path
+
+# Assuming OUTPUT_DIR is defined in your config and is the base directory for output
+# Define the base directory for data, OUTPUT_DIR is assumed to be defined earlier
+DATA_DIR = Path(config.DATA_DIR)
+
+# Define the path to save the plots
+plot_save_path = DATA_DIR / "data" / "manual"
+plot_save_path.mkdir(parents=True, exist_ok=True)
+
+# Sheets and categories of interest
+sheets = [
+    'Value Weighted Annual EP',
+    'Equal Weighted Annual EP',
+    'Value Weighted Annual CFP',
+    'Equal Weighted Annual CFP'
+]
+categories = ['Category_Hi 30', 'Category_Lo 30', 'Category_Med 40']
+
+def plot_categories(sheet_name, df, categories, plot_save_path):
     plt.figure(figsize=(10, 6))
-    plt.plot(df['year'], df[category], label=category, marker='o', linestyle='-')
-    plt.title(f'{sheet_name} - {category}')
+
+    # Check if the 'year' column exists and convert to datetime if necessary
+    if 'year' not in df.columns:
+        df['year'] = pd.to_datetime(df.iloc[:, 0]).dt.year
+
+    # Plot each category in the provided categories list if it exists in the DataFrame
+    for category in categories:
+        if category in df.columns:
+            plt.plot(df['year'], df[category], label=category)
+
+    plt.title(f'{sheet_name} - Category Comparison')
     plt.xlabel('Year')
-    plt.ylabel('Returns')
+    plt.ylabel('Return')
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    
-    # Save the plot as a PNG file
-    file_name = f"{sheet_name.replace(' ', '_')}_{category.replace(' ', '_')}.png"
-    plt.savefig(f"{OUTPUT_DIR}/{file_name}")
+
+    # Save the plot with a dynamic name based on the sheet name
+    plt.savefig(plot_save_path / f'{sheet_name.replace(" ", "_")}_category_comparison.png')
     plt.close()
 
-# Loop through each sheet and plot the specified categories
+# Plot for each sheet and category
+file_path1 = OUTPUT_DIR / 'portfolio_metrics_final.xlsx'
 for sheet in sheets:
+    # Read the sheet
     df = pd.read_excel(file_path1, sheet_name=sheet)
-    
-    # Ensure 'jdate' is a datetime column and set as index if needed
-    df['year'] = pd.to_datetime(df['year'])
-    
-    for category in categories:
-        plot_and_save_graph(sheet, category, df)
-
-print("Graphs have been generated and saved.")
-
+    # Plot the categories for the sheet
+    plot_categories(sheet, df, categories, plot_save_path)
