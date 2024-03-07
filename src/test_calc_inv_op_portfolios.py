@@ -1,6 +1,6 @@
 import pandas as pd
 from pandas.testing import assert_frame_equal
-from inv_op2 import *
+from calc_op_inv_portfolios import *
 from load_CRSP_Compustat import *
 
 import config

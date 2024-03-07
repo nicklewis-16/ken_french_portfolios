@@ -119,27 +119,14 @@ def merge_CRSP_and_Compustat(crsp_jun, comp, ccm, crsp3):
         comp, ccm, how="inner", on=["gvkey", "year", "month_num"]
     )
     ccm1["yearend"] = ccm1["datadate"] + YearEnd(0)
-
-    #ccm1["date"] = ccm1["yearend"] + MonthEnd(6)
    
     ccm2 = ccm1[["gvkey", "permno", "datadate", "yearend", "date", "retx", "me", "be", "op", "inv", "count", "year"]]
-
-    ccm1["date"] = ccm1["yearend"] + MonthEnd(6)
-   
-    ccm2 = ccm1[["gvkey", "permno", "datadate", "yearend", "date", "retx", "be", "op", "inv", "count", "year"]]
-
 
     op_df = ccm2.groupby(['year', 'permno'])['op'].sum().reset_index().rename(columns={'op': 'year_op'})
     ccm2 = pd.merge(ccm2, op_df, on=['year', 'permno'], how='left')
 
     inv_df = ccm2.groupby(['year', 'permno'])['inv'].sum().reset_index().rename(columns={'inv': 'year_inv'})
     ccm2 = pd.merge(ccm2, inv_df, on=['year', 'permno'], how='left')
-
-
-    #ccm2 = pd.merge(ccm2, crsp3[['permno', 'date', 'wt']], how="left", on=["permno", "date"])
-
-    ccm2 = pd.merge(ccm2, crsp3[['permno', 'date', 'wt']], how="left", on=["permno", "date"])
-
 
     # link comp and crsp
     ccm_jun = pd.merge(crsp_jun, ccm2, how="inner", on=["permno", "date"])
@@ -193,104 +180,16 @@ def create_op_inv_portfolios(ccm4):
     """Create value-weighted Fama-French portfolios
     and provide count of firms in each portfolio.
     """
-    # THIS CODE IS COMPLETED FOR YOU
-    # monthly value-weigthed return
-
-    # vwret_m = (
-    #     ccm4.groupby(["date", "opport", "invport"])
-    #     .apply(wavg, "retx", "wt")
-    #     .to_frame()
-    #     .reset_index()
-    #     .rename(columns={0: "vwret_m"})
-    # )
-    #vwret_m["OIport"] = vwret_m["opport"] + vwret_m["invport"]
-
     ccm4['weight'] = ccm4['me'] / ccm4.groupby(['date', 'opport', 'invport'])['me'].transform('sum')
     ccm4['weighted_ret'] = ccm4['retx'] * ccm4['weight']
     vwret_m = ccm4.groupby(['date', 'opport', 'invport'])['weighted_ret'].sum().reset_index(name='value_weighted_ret')
     vwret_m = vwret_m.pivot(index="date", columns=["opport",'invport'])
 
-    # monthly equal-weigthed return
-    # eq_wavg = (lambda x: np.mean(x['retx']))
-
-    # ewret_m = (
-    #     ccm4.groupby(["date", "opport", "invport"])
-    #     .apply(eq_wavg)
-    #     .to_frame()
-    #     .reset_index()
-    #     .rename(columns={0: "ewret_m"})
-    # )
-
     ccm4['equal_weight'] = 1 / ccm4.groupby(['date', 'opport', 'invport'])['permno'].transform('count')
     ccm4['equal_weighted_ret'] = ccm4['retx'] * ccm4['equal_weight']
     ewret_m = ccm4.groupby(['date', 'opport', 'invport'])['equal_weighted_ret'].sum().reset_index(name='equal_weighted_ret')
     ewret_m = ewret_m.pivot(index="date", columns=["opport",'invport'])
-
-
-    #ewret_m["OIport"] = ewret_m["opport"] + ewret_m["invport"]
-
-    # yearly value-weigthed return
-    # vwret_y = (
-    #     ccm4.groupby(["year", "opport", "invport"])
-    #     .apply(wavg, "retx", "wt")
-    #     .to_frame()
-    #     .reset_index()
-    #     .rename(columns={0: "vwret_y"})
-    # )
-
-    vwret_m = (
-        ccm4.groupby(["date", "opport", "invport"])
-        .apply(wavg, "retx", "wt")
-        .to_frame()
-        .reset_index()
-        .rename(columns={0: "vwret_m"})
-    )
-    #vwret_m["OIport"] = vwret_m["opport"] + vwret_m["invport"]
-
-    # monthly equal-weigthed return
-    eq_wavg = (lambda x: np.mean(x['retx']))
-
-    ewret_m = (
-        ccm4.groupby(["date", "opport", "invport"])
-        .apply(eq_wavg)
-        .to_frame()
-        .reset_index()
-        .rename(columns={0: "ewret_m"})
-    )
-    #ewret_m["OIport"] = ewret_m["opport"] + ewret_m["invport"]
-
-    # yearly value-weigthed return
-    vwret_y = (
-        ccm4.groupby(["year", "opport", "invport"])
-        .apply(wavg, "retx", "wt")
-        .to_frame()
-        .reset_index()
-        .rename(columns={0: "vwret_y"})
-    )
-
-    #vwret_y["OIport"] = vwret_y["opport"] + vwret_y["invport"]
-
-    # yearly equal-weigthed return
-    #eq_wavg = (lambda x: np.mean(x['mthret']))
-
-
-    # ewret_y = (
-    #     ccm4.groupby(["year", "opport", "invport"])
-    #     .apply(eq_wavg)
-    #     .to_frame()
-    #     .reset_index()
-    #     .rename(columns={0: "ewret_y"})
-    # )
-
-    ewret_y = (
-        ccm4.groupby(["year", "opport", "invport"])
-        .apply(eq_wavg)
-        .to_frame()
-        .reset_index()
-        .rename(columns={0: "ewret_y"})
-    )
-
-    #ewret_y["OIport"] = ewret_y["opport"] + ewret_y["invport"]
+  
 
     # firm count
     num_firms = (
@@ -299,30 +198,11 @@ def create_op_inv_portfolios(ccm4):
         .reset_index()
         .rename(columns={"retx": "n_firms"})
     )
-    #num_firms["OIport"] = num_firms["opport"] + num_firms["invport"]
 
     num_firms = num_firms.pivot(index="date", columns=["opport",'invport'], values="n_firms")
 
-    #num_firms = num_firms.pivot(index="date", columns="OIport", values="n_firms")
-
-
-    ## market cap
-    # avg_market_cap = (lambda x: np.mean(x['mktcap']))
-
-    # cap = (
-    #     ccm4.groupby(["date", "opport", "invport"])
-    #     .apply(avg_market_cap)
-    #     .to_frame()
-    #     .reset_index()
-    #     .rename(columns={0: "m_cap"})
-    # )
-    # #cap["OIport"] = cap["opport"] + cap["invport"]
-
 
     return vwret_m, ewret_m, num_firms
-
-    return vwret_m, ewret_m, vwret_y, ewret_y, num_firms
-
 
 
 
@@ -346,7 +226,7 @@ if __name__ == "__main__":
 
     vwret_m, ewret_m, num_firms = create_op_inv_portfolios(ccm3) # create op_inv_portfolios
 
-    filename = OUTPUT_DIR / '5x5_OP_INV_portfolios.xlsx'
+    filename = DATA_DIR/ 'manual' / '5x5_OP_INV_portfolios.xlsx'
 
     with pd.ExcelWriter(filename, engine='xlsxwriter') as writer:
         vwret_m.to_excel(writer, sheet_name='VW Avg Mo. Ret', index=True)
